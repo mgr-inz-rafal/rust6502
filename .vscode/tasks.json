@@ -7,16 +7,12 @@
 			"problemMatcher": [
 				"$rustc"
 			],
-			"group": {
-				"kind": "build",
-				"isDefault": false
-			},
 			"label": "rust: cargo build"
 		},
 		{
 			"type": "cargo",
 			"command": "asm",
-			"args": ["rust6502::main", "--asm-style", "att"],
+			"args": ["rust6502::asm6502", "--asm-style", "att", "--target", "i686-unknown-linux-gnu"],
 			"problemMatcher": [
 				"$rustc"
 			],
