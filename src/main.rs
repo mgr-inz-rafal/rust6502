@@ -1,9 +1,9 @@
 #![feature(llvm_asm)]
 
-use volatile_register::RW;
+use volatile_register::WO;
 #[repr(C)]
-pub struct COLOR {
-    pub csr: RW<u8>
+pub struct BYTE {
+    pub v: WO<u8>
 }
 
 pub fn black_box<T>(dummy: T) -> T {
@@ -13,12 +13,19 @@ pub fn black_box<T>(dummy: T) -> T {
 
 #[inline(never)]
 pub fn asm6502() {
-    let color = 764 as *const COLOR;
+    const WSYNC: u16 = 0xD40A;
+    const COLPM0: u16 = 0xD012;
 
-    for i in 0u8..150 {
+    let wsync = WSYNC as *const BYTE;
+    let colpm0 = COLPM0 as *const BYTE;
+
+    let mut x: u8 = 0;
+    loop {
         unsafe {
-            (*color).csr.write(i);
+            (*wsync).v.write(0);
+            (*colpm0).v.write(x);
         }
+        x += 1;
     }
 }
 

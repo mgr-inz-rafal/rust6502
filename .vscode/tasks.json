@@ -12,7 +12,7 @@
 		{
 			"type": "cargo",
 			"command": "asm",
-			"args": ["rust6502::asm6502", "--asm-style", "att", "--target", "i686-unknown-linux-gnu"],
+			"args": ["rust6502::asm6502", "--asm-style", "att", "--target", "i686-unknown-linux-gnu", ">output.asm"],
 			"problemMatcher": [
 				"$rustc"
 			],
