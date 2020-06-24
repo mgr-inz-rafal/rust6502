@@ -1,1 +1,0 @@
-"Z:\home\rslsync\Resilio Sync\Sync\Atari\Narzedzia\mads_1.9_6\mads.exe" -x -t:rainbow.lab -l:rainbow.lst -o:rainbow.xex rainbow.asm

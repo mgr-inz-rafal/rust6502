@@ -1,1 +1,0 @@
-"Z:\home\rslsync\Resilio Sync\Sync\Atari\Emulatory\Altirra\Altirra64.exe" rainbow.xex

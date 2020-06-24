@@ -1,7 +1,0 @@
-mads 2.1.0 build 4 (27 Oct 19)
-Source: rainbow.asm
-     1 				        org $2000
-     2
-     3 FFFF> 2000-2004> A9 17	        lda #23
-     4
-     5 2002 4C 02 20		dupa    jmp dupa
