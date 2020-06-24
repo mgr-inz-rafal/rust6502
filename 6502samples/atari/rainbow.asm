@@ -1,5 +1,6 @@
         org $2000
 
-        lda #23
-
-dupa    jmp dupa
+AGAIN   sta $D40A
+        stx $D01A
+        inx
+        jmp AGAIN
