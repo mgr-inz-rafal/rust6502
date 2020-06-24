@@ -12,15 +12,23 @@
 		{
 			"type": "cargo",
 			"command": "asm",
-			"args": ["rust6502::asm6502", "--no-color", "--asm-style", "att", "--target", "i686-unknown-linux-gnu", ">output.asm"],
+			"args": [
+				"rust6502::asm6502",
+				"--no-color",
+				"--asm-style",
+				"att",
+				"--target",
+				"i686-unknown-linux-gnu",
+				">output.asm"
+			],
 			"problemMatcher": [
 				"$rustc"
 			],
+			"label": "rust: cargo asm",
 			"group": {
 				"kind": "build",
 				"isDefault": true
-			},
-			"label": "rust: cargo asm"
+			}
 		}
 	]
 }
