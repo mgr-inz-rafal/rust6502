@@ -8,7 +8,8 @@ const FILENAME: &str = "output.asm";
 #[derive(Debug)]
 enum AsmLineError {
     UnknownError,
-    UnknownOpcode(String)
+    UnknownOpcode(String),
+    IncorrectArgs
 }
 
 #[derive(Debug)]
@@ -18,8 +19,9 @@ enum AsmLine {
 }
 
 impl AsmLine {
-    fn to_params<'a>(parts: &'a mut SplitWhitespace) -> Result<Vec<&'a str>, String> {
-       Ok(parts.take(2).collect::<Vec<&str>>())
+    fn to_args<'a>(parts: &'a mut SplitWhitespace, expected_count: usize) -> Result<Vec<&'a str>, &'static str> {
+       let args = parts.take(2).collect::<Vec<&str>>();
+       if args.len() == expected_count { Ok(args) } else { Err("Incorrect number of arguments") }
     }
 }
 
@@ -36,8 +38,10 @@ impl FromStr for AsmLine {
         let mut parts = line.split_whitespace();
         if let Some(opcode) = parts.next() {
             match opcode {
-                "xorl" => if let Ok(x) = AsmLine::to_params(&mut parts) {
-                    return Ok(Self::Xor(x[0].to_string(), x[1].to_string()));
+                "xorl" => if let Ok(args) = AsmLine::to_args(&mut parts, 2) {
+                    return Ok(Self::Xor(args[0].to_string(), args[1].to_string()));
+                } else {
+                    return Err(AsmLineError::IncorrectArgs)
                 },
                 // "movb" => {},
                 // "incb" => {},
