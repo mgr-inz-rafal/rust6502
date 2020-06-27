@@ -3,7 +3,7 @@
 use volatile_register::WO;
 #[repr(C)]
 pub struct BYTE {
-    pub v: WO<u8>
+    pub v: WO<u8>,
 }
 
 pub fn black_box<T>(dummy: T) -> T {

@@ -9,7 +9,7 @@ const FILENAME: &str = "output.asm";
 enum AsmLineError {
     UnknownError,
     UnknownOpcode(String),
-    IncorrectArgs
+    IncorrectArgs,
 }
 
 #[derive(Debug)]
@@ -18,13 +18,20 @@ enum AsmLine {
     Xor(String, String),
     Mov(String, String),
     Inc(String),
-    Jmp(String)
+    Jmp(String),
 }
 
 impl AsmLine {
-    fn to_args<'a>(parts: &'a mut SplitWhitespace, expected_count: usize) -> Result<Vec<&'a str>, &'static str> {
-       let args = parts.take(2).collect::<Vec<&str>>();
-       if args.len() == expected_count { Ok(args) } else { Err("Incorrect number of arguments") }
+    fn to_args<'a>(
+        parts: &'a mut SplitWhitespace,
+        expected_count: usize,
+    ) -> Result<Vec<&'a str>, &'static str> {
+        let args = parts.take(2).collect::<Vec<&str>>();
+        if args.len() == expected_count {
+            Ok(args)
+        } else {
+            Err("Incorrect number of arguments")
+        }
     }
 }
 
@@ -33,7 +40,7 @@ macro_rules! generate_opcode_2args {
         if let Ok(args) = AsmLine::to_args(&mut $parts, 2) {
             return Ok($opcode(args[0].to_string(), args[1].to_string()));
         } else {
-            return Err(AsmLineError::IncorrectArgs)
+            return Err(AsmLineError::IncorrectArgs);
         }
     };
 }
@@ -43,7 +50,7 @@ macro_rules! generate_opcode_1arg {
         if let Ok(args) = AsmLine::to_args(&mut $parts, 1) {
             return Ok($opcode(args[0].to_string()));
         } else {
-            return Err(AsmLineError::IncorrectArgs)
+            return Err(AsmLineError::IncorrectArgs);
         }
     };
 }
@@ -65,7 +72,7 @@ impl FromStr for AsmLine {
                 "movb" => generate_opcode_2args!(parts, Self::Mov),
                 "incb" => generate_opcode_1arg!(parts, Self::Inc),
                 "jmp" => generate_opcode_1arg!(parts, Self::Jmp),
-                _ => return Err(AsmLineError::UnknownOpcode(opcode.to_string()))
+                _ => return Err(AsmLineError::UnknownOpcode(opcode.to_string())),
             }
         }
 
