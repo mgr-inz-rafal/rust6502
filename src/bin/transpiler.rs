@@ -15,7 +15,10 @@ enum AsmLineError {
 #[derive(Debug)]
 enum AsmLine {
     Label(String),
-    Xor(String, String)
+    Xor(String, String),
+    Mov(String, String),
+    Inc(String),
+    Jmp(String)
 }
 
 impl AsmLine {
@@ -23,6 +26,26 @@ impl AsmLine {
        let args = parts.take(2).collect::<Vec<&str>>();
        if args.len() == expected_count { Ok(args) } else { Err("Incorrect number of arguments") }
     }
+}
+
+macro_rules! generate_opcode_2args {
+    ($parts:expr, $opcode:path) => {
+        if let Ok(args) = AsmLine::to_args(&mut $parts, 2) {
+            return Ok($opcode(args[0].to_string(), args[1].to_string()));
+        } else {
+            return Err(AsmLineError::IncorrectArgs)
+        }
+    };
+}
+
+macro_rules! generate_opcode_1arg {
+    ($parts:expr, $opcode:path) => {
+        if let Ok(args) = AsmLine::to_args(&mut $parts, 1) {
+            return Ok($opcode(args[0].to_string()));
+        } else {
+            return Err(AsmLineError::IncorrectArgs)
+        }
+    };
 }
 
 impl FromStr for AsmLine {
@@ -38,14 +61,10 @@ impl FromStr for AsmLine {
         let mut parts = line.split_whitespace();
         if let Some(opcode) = parts.next() {
             match opcode {
-                "xorl" => if let Ok(args) = AsmLine::to_args(&mut parts, 2) {
-                    return Ok(Self::Xor(args[0].to_string(), args[1].to_string()));
-                } else {
-                    return Err(AsmLineError::IncorrectArgs)
-                },
-                // "movb" => {},
-                // "incb" => {},
-                // "jmp" => {},
+                "xorl" => generate_opcode_2args!(parts, Self::Xor),
+                "movb" => generate_opcode_2args!(parts, Self::Mov),
+                "incb" => generate_opcode_1arg!(parts, Self::Inc),
+                "jmp" => generate_opcode_1arg!(parts, Self::Jmp),
                 _ => return Err(AsmLineError::UnknownOpcode(opcode.to_string()))
             }
         }
