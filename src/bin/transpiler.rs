@@ -22,7 +22,7 @@ enum AsmLine {
 }
 
 impl AsmLine {
-    fn to_args<'a>(
+    fn args<'a>(
         parts: &'a mut SplitWhitespace,
         expected_count: usize,
     ) -> Result<Vec<&'a str>, &'static str> {
@@ -37,7 +37,7 @@ impl AsmLine {
 
 macro_rules! generate_opcode_2args {
     ($parts:expr, $opcode:path) => {
-        if let Ok(args) = AsmLine::to_args(&mut $parts, 2) {
+        if let Ok(args) = AsmLine::args(&mut $parts, 2) {
             return Ok($opcode(args[0].to_string(), args[1].to_string()));
         } else {
             return Err(AsmLineError::IncorrectArgs);
@@ -47,7 +47,7 @@ macro_rules! generate_opcode_2args {
 
 macro_rules! generate_opcode_1arg {
     ($parts:expr, $opcode:path) => {
-        if let Ok(args) = AsmLine::to_args(&mut $parts, 1) {
+        if let Ok(args) = AsmLine::args(&mut $parts, 1) {
             return Ok($opcode(args[0].to_string()));
         } else {
             return Err(AsmLineError::IncorrectArgs);
