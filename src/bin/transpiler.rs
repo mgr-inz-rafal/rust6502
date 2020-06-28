@@ -50,6 +50,15 @@ enum Arg {
     _RelativeAddress(i32),
 }
 
+impl Arg {
+    fn register_from_name(name: &str) -> Option<char> {
+        match name {
+            "eax" | "al" => Some('A'),
+            _ => None,
+        }
+    }
+}
+
 impl FromStr for Arg {
     type Err = AsmLineError;
 
@@ -58,25 +67,40 @@ impl FromStr for Arg {
             return Err(AsmLineError::EmptyArgument);
         }
 
-        let mut i = s.chars();
-        Ok(i.next().and_then(|c| match c {
-            '$' => return Some(Self::Literal(
-                {
-                    let abc: String = i.filter(|c| *c != ',').collect();
-                    abc.parse::<i32>().unwrap()
-                }
-            )),
-            '%' => return Some(Self::Register('A')),
-            '0'..='9' => return Some(Self::AbsoluteAddress(3)),
-            _ => return None,
-        })?)
+        let mut it = s.chars().peekable();
+        if let Some(c) = it.peek() {
+            Ok(match c {
+                '%' => Arg::register_from_name(
+                    &it.skip(1)
+                        .filter(|c| !vec![',', '%'].contains(c))
+                        .collect::<String>(),
+                )
+                .and_then(|c| Some(Self::Register(c))),
+                '0'..='9' => Some(Self::AbsoluteAddress({
+                    it.filter(|c| *c != ',')
+                        .collect::<String>()
+                        .parse::<i32>()
+                        .unwrap()
+                })),
+                '$' => Some(Self::Literal({
+                    it.skip(1)
+                        .filter(|c| *c != ',')
+                        .collect::<String>()
+                        .parse::<i32>()
+                        .unwrap()
+                })),
+                _ => None,
+            }?)
+        } else {
+            return Err(AsmLineError::MalformedArgument);
+        }
     }
 }
 
 #[derive(Debug)]
 enum AsmLine {
     Label(String),
-    Xor(String, String),
+    Xor(Arg, Arg),
     Mov(Arg, Arg),
     Inc(String),
     Jmp(String),
@@ -110,7 +134,7 @@ impl FromStr for AsmLine {
         if let Some(opcode) = parts.next() {
             match opcode {
                 "movb" => opcode2!(parts, Self::Mov),
-                // "xorl" => opcode2!(parts, Self::Xor),
+                "xorl" => opcode2!(parts, Self::Xor),
                 // "incb" => opcode1!(parts, Self::Inc),
                 // "jmp" => opcode1!(parts, Self::Jmp),
                 _ => return Err(AsmLineError::UnknownOpcode(opcode.to_string())),
