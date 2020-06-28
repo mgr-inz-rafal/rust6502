@@ -84,15 +84,15 @@ fn main() -> Result<(), std::io::Error> {
     let file = File::open(FILENAME)?;
     let file = BufReader::new(&file);
 
-    for (num, line) in file.lines().skip(1).enumerate() {
-        if let Ok(line) = line {
-            println!("Parsing line {}: {:?}", num, line);
-            let line = line.parse::<AsmLine>();
+    let x: Vec<AsmLine> = file
+        .lines()
+        .skip(1)
+        .map(|l| l.unwrap())
+        .map(|s| s.parse::<AsmLine>())
+        .map(|s| s.unwrap())
+        .collect();
 
-            println!("   {:?}", line);
-            println!();
-        }
-    }
+    println!("{:?}", x);
 
     Ok(())
 }
