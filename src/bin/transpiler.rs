@@ -223,6 +223,7 @@ fn main() -> Result<(), std::io::Error> {
     println!();
 
     println!("Generating 6502 code...");
+    println!("\tORG $2000");
     input.into_iter().for_each(|l| print!("{}", l));
     println!("Code generation complete.");
     println!();
