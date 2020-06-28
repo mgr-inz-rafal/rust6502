@@ -9,7 +9,7 @@ const FILENAME: &str = "output.asm";
 enum AsmLineError {
     UnknownError,
     UnknownOpcode(String),
-    IncorrectArgs,
+    IncorrectNumberOfArguments,
 }
 
 #[derive(Debug)]
@@ -25,34 +25,14 @@ impl AsmLine {
     fn args<'a>(
         parts: &'a mut SplitWhitespace,
         expected_count: usize,
-    ) -> Result<Vec<&'a str>, &'static str> {
+    ) -> Result<Vec<&'a str>, AsmLineError> {
         let args = parts.take(2).collect::<Vec<&str>>();
         if args.len() == expected_count {
             Ok(args)
         } else {
-            Err("Incorrect number of arguments")
+            Err(AsmLineError::IncorrectNumberOfArguments)
         }
     }
-}
-
-macro_rules! generate_opcode_2args {
-    ($parts:expr, $opcode:path) => {
-        if let Ok(args) = AsmLine::args(&mut $parts, 2) {
-            return Ok($opcode(args[0].to_string(), args[1].to_string()));
-        } else {
-            return Err(AsmLineError::IncorrectArgs);
-        }
-    };
-}
-
-macro_rules! generate_opcode_1arg {
-    ($parts:expr, $opcode:path) => {
-        if let Ok(args) = AsmLine::args(&mut $parts, 1) {
-            return Ok($opcode(args[0].to_string()));
-        } else {
-            return Err(AsmLineError::IncorrectArgs);
-        }
-    };
 }
 
 impl FromStr for AsmLine {
@@ -68,10 +48,22 @@ impl FromStr for AsmLine {
         let mut parts = line.split_whitespace();
         if let Some(opcode) = parts.next() {
             match opcode {
-                "xorl" => generate_opcode_2args!(parts, Self::Xor),
-                "movb" => generate_opcode_2args!(parts, Self::Mov),
-                "incb" => generate_opcode_1arg!(parts, Self::Inc),
-                "jmp" => generate_opcode_1arg!(parts, Self::Jmp),
+                "xorl" => {
+                    let args = AsmLine::args(&mut parts, 2)?;
+                    return Ok(Self::Xor(args[0].to_string(), args[1].to_string()));
+                }
+                "movb" => {
+                    let args = AsmLine::args(&mut parts, 2)?;
+                    return Ok(Self::Mov(args[0].to_string(), args[1].to_string()));
+                }
+                "incb" => {
+                    let args = AsmLine::args(&mut parts, 1)?;
+                    return Ok(Self::Inc(args[0].to_string()));
+                }
+                "jmp" => {
+                    let args = AsmLine::args(&mut parts, 1)?;
+                    return Ok(Self::Jmp(args[0].to_string()));
+                }
                 _ => return Err(AsmLineError::UnknownOpcode(opcode.to_string())),
             }
         }
@@ -87,9 +79,16 @@ fn main() -> Result<(), std::io::Error> {
     let x: Vec<AsmLine> = file
         .lines()
         .skip(1)
-        .map(|l| l.unwrap())
-        .map(|s| s.parse::<AsmLine>())
-        .map(|s| s.unwrap())
+        .enumerate()
+        .map(|(num, l)| {
+            print!("Line {:4}\t\t", num);
+            l.unwrap()
+        })
+        .map(|s| {
+            println!("{}", s);
+            s.parse::<AsmLine>()
+        })
+        .map(|s| s.expect("Parse error"))
         .collect();
 
     println!("{:?}", x);
