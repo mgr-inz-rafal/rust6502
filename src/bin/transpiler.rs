@@ -49,20 +49,20 @@ impl FromStr for AsmLine {
         if let Some(opcode) = parts.next() {
             match opcode {
                 "xorl" => {
-                    let args = AsmLine::args(&mut parts, 2)?;
-                    return Ok(Self::Xor(args[0].to_string(), args[1].to_string()));
+                    return AsmLine::args(&mut parts, 2)
+                        .and_then(|args| Ok(Self::Xor(args[0].to_string(), args[1].to_string())));
                 }
                 "movb" => {
-                    let args = AsmLine::args(&mut parts, 2)?;
-                    return Ok(Self::Mov(args[0].to_string(), args[1].to_string()));
+                    return AsmLine::args(&mut parts, 2)
+                        .and_then(|args| Ok(Self::Mov(args[0].to_string(), args[1].to_string())));
                 }
                 "incb" => {
-                    let args = AsmLine::args(&mut parts, 1)?;
-                    return Ok(Self::Inc(args[0].to_string()));
+                    return AsmLine::args(&mut parts, 1)
+                        .and_then(|args| Ok(Self::Inc(args[0].to_string())));
                 }
                 "jmp" => {
-                    let args = AsmLine::args(&mut parts, 1)?;
-                    return Ok(Self::Jmp(args[0].to_string()));
+                    return AsmLine::args(&mut parts, 1)
+                        .and_then(|args| Ok(Self::Jmp(args[0].to_string())));
                 }
                 _ => return Err(AsmLineError::UnknownOpcode(opcode.to_string())),
             }
