@@ -97,7 +97,7 @@ impl FromStr for Arg {
                 )
                 .and_then(|c| Some(Self::Register(c))),
                 '.' => Some(Self::Label({
-                    it.filter(|c| *c != ',').collect::<String>()
+                    it.skip(1).filter(|c| *c != ',').collect::<String>()
                 })),
                 '0'..='9' => Some(Self::AbsoluteAddress({
                     it.filter(|c| *c != ',')
@@ -150,7 +150,7 @@ impl FromStr for AsmLine {
         let line = s.to_string();
 
         if line.starts_with('.') {
-            return Ok(Self::Label(line));
+            return Ok(Self::Label(line[1..].to_string()));
         }
 
         let mut parts = line.split_whitespace();

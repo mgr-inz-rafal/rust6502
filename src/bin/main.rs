@@ -14,16 +14,16 @@ pub fn black_box<T>(dummy: T) -> T {
 #[inline(never)]
 pub fn asm6502() {
     const WSYNC: u16 = 0xD40A;
-    const COLPM0: u16 = 0xD012;
+    const COLBK: u16 = 0xD01A;
 
     let wsync = WSYNC as *const BYTE;
-    let colpm0 = COLPM0 as *const BYTE;
+    let colbk = COLBK as *const BYTE;
 
     let mut x: u8 = 0;
     loop {
         unsafe {
             (*wsync).v.write(0);
-            (*colpm0).v.write(x);
+            (*colbk).v.write(x);
         }
         x += 1;
     }

@@ -13,7 +13,7 @@
 			"type": "cargo",
 			"command": "asm",
 			"args": [
-				"rust6502::asm6502",
+				"main::asm6502",
 				"--no-color",
 				"--asm-style",
 				"att",
