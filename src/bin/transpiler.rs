@@ -176,12 +176,15 @@ impl fmt::Display for AsmLine {
             Self::Xor(l, r) if l == r => writeln!(f, "\tLD{} #0", l),
             Self::Mov(l, r) => match (l, r) {
                 (Arg::Literal(l), Arg::AbsoluteAddress(a)) => {
-                    writeln!(f, "\tPHA");
-                    writeln!(f, "\tLDA #{}", l);
-                    writeln!(f, "\tSTA {}", a);
-                    writeln!(f, "\tPLA")
+                    writeln!(f, "\tPHA")
+                        .and_then(|_| writeln!(f, "\tLDA #{}", l))
+                        .and_then(|_| writeln!(f, "\tSTA {}", a))
+                        .and_then(|_| writeln!(f, "\tPLA"))
+                },
+                (Arg::Register(r), Arg::AbsoluteAddress(a)) => {
+                    writeln!(f, "\tST{} {}", r, a)
                 }
-                _ => writeln!(f, "Dupa"),
+                _ => writeln!(f, "Unable to generate code for opcode 'MOV' with combination of arguments: '{:?}' and '{:?}'", l, r),
             },
             _ => writeln!(f, "Unable to generate 6502 code for line: {:?}", self),
         }
