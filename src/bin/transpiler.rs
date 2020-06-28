@@ -174,6 +174,15 @@ impl fmt::Display for AsmLine {
             Self::Label(l) => writeln!(f, "{}", l),
             Self::Jmp(l) => writeln!(f, "\tJMP {}", l),
             Self::Xor(l, r) if l == r => writeln!(f, "\tLD{} #0", l),
+            Self::Mov(l, r) => match (l, r) {
+                (Arg::Literal(l), Arg::AbsoluteAddress(a)) => {
+                    writeln!(f, "\tPHA");
+                    writeln!(f, "\tLDA #{}", l);
+                    writeln!(f, "\tSTA {}", a);
+                    writeln!(f, "\tPLA")
+                }
+                _ => writeln!(f, "Dupa"),
+            },
             _ => writeln!(f, "Unable to generate 6502 code for line: {:?}", self),
         }
     }
