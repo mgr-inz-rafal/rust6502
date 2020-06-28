@@ -35,6 +35,19 @@ impl AsmLine {
     }
 }
 
+macro_rules! opcode2 {
+    ($parts:expr, $opcode:path) => {
+        return AsmLine::args(&mut $parts, 2)
+            .and_then(|args| Ok($opcode(args[0].to_string(), args[1].to_string())));
+    };
+}
+
+macro_rules! opcode1 {
+    ($parts:expr, $opcode:path) => {
+        return AsmLine::args(&mut $parts, 1).and_then(|args| Ok($opcode(args[0].to_string())));
+    };
+}
+
 impl FromStr for AsmLine {
     type Err = AsmLineError;
 
@@ -48,22 +61,10 @@ impl FromStr for AsmLine {
         let mut parts = line.split_whitespace();
         if let Some(opcode) = parts.next() {
             match opcode {
-                "xorl" => {
-                    return AsmLine::args(&mut parts, 2)
-                        .and_then(|args| Ok(Self::Xor(args[0].to_string(), args[1].to_string())));
-                }
-                "movb" => {
-                    return AsmLine::args(&mut parts, 2)
-                        .and_then(|args| Ok(Self::Mov(args[0].to_string(), args[1].to_string())));
-                }
-                "incb" => {
-                    return AsmLine::args(&mut parts, 1)
-                        .and_then(|args| Ok(Self::Inc(args[0].to_string())));
-                }
-                "jmp" => {
-                    return AsmLine::args(&mut parts, 1)
-                        .and_then(|args| Ok(Self::Jmp(args[0].to_string())));
-                }
+                "xorl" => opcode2!(parts, Self::Xor),
+                "movb" => opcode2!(parts, Self::Mov),
+                "incb" => opcode1!(parts, Self::Inc),
+                "jmp" => opcode1!(parts, Self::Jmp),
                 _ => return Err(AsmLineError::UnknownOpcode(opcode.to_string())),
             }
         }
