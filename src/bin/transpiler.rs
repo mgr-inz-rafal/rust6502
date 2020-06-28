@@ -1,6 +1,5 @@
 #![feature(try_trait)]
 
-use std::error::Error;
 use std::fmt;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -20,12 +19,12 @@ enum AsmLineError {
 }
 
 impl From<NoneError> for AsmLineError {
-    fn from(e: NoneError) -> Self {
+    fn from(_: NoneError) -> Self {
         AsmLineError::MalformedArgument
     }
 }
 
-macro_rules! opcode2 {
+macro_rules! opcode_with_2_args {
     ($parts:expr, $opcode:path) => {
         return AsmLine::args(&mut $parts, 2).and_then(|args| {
             Ok($opcode(
@@ -36,9 +35,10 @@ macro_rules! opcode2 {
     };
 }
 
-macro_rules! opcode1 {
+macro_rules! opcode_with_1_arg {
     ($parts:expr, $opcode:path) => {
-        return AsmLine::args(&mut $parts, 1).and_then(|args| Ok($opcode(args[0].to_string())));
+        return AsmLine::args(&mut $parts, 1)
+            .and_then(|args| Ok($opcode(args[0].parse::<Arg>().unwrap())));
     };
 }
 
@@ -48,6 +48,7 @@ enum Arg {
     Register(char),
     AbsoluteAddress(i32),
     _RelativeAddress(i32),
+    Label(String),
 }
 
 impl Arg {
@@ -55,6 +56,25 @@ impl Arg {
         match name {
             "eax" | "al" => Some('A'),
             _ => None,
+        }
+    }
+}
+
+impl fmt::Display for Arg {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Label(s) => write!(f, "{}", s),
+            Self::Register(c) => write!(f, "{}", c),
+            _ => write!(f, "Unable to generate 6502 code for argument: {:?}", self),
+        }
+    }
+}
+
+impl PartialEq for Arg {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Register(r1), Self::Register(r2)) => r1 == r2,
+            _ => false,
         }
     }
 }
@@ -76,6 +96,9 @@ impl FromStr for Arg {
                         .collect::<String>(),
                 )
                 .and_then(|c| Some(Self::Register(c))),
+                '.' => Some(Self::Label({
+                    it.filter(|c| *c != ',').collect::<String>()
+                })),
                 '0'..='9' => Some(Self::AbsoluteAddress({
                     it.filter(|c| *c != ',')
                         .collect::<String>()
@@ -102,8 +125,8 @@ enum AsmLine {
     Label(String),
     Xor(Arg, Arg),
     Mov(Arg, Arg),
-    Inc(String),
-    Jmp(String),
+    Inc(Arg),
+    Jmp(Arg),
 }
 
 impl AsmLine {
@@ -133,10 +156,10 @@ impl FromStr for AsmLine {
         let mut parts = line.split_whitespace();
         if let Some(opcode) = parts.next() {
             match opcode {
-                "movb" => opcode2!(parts, Self::Mov),
-                "xorl" => opcode2!(parts, Self::Xor),
-                // "incb" => opcode1!(parts, Self::Inc),
-                // "jmp" => opcode1!(parts, Self::Jmp),
+                "movb" => opcode_with_2_args!(parts, Self::Mov),
+                "xorl" => opcode_with_2_args!(parts, Self::Xor),
+                "incb" => opcode_with_1_arg!(parts, Self::Inc),
+                "jmp" => opcode_with_1_arg!(parts, Self::Jmp),
                 _ => return Err(AsmLineError::UnknownOpcode(opcode.to_string())),
             }
         }
@@ -147,7 +170,12 @@ impl FromStr for AsmLine {
 
 impl fmt::Display for AsmLine {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", "")
+        match self {
+            Self::Label(l) => writeln!(f, "{}", l),
+            Self::Jmp(l) => writeln!(f, "\tJMP {}", l),
+            Self::Xor(l, r) if l == r => writeln!(f, "\tLD{} #0", l),
+            _ => writeln!(f, "Unable to generate 6502 code for line: {:?}", self),
+        }
     }
 }
 
@@ -155,6 +183,7 @@ fn main() -> Result<(), std::io::Error> {
     let file = File::open(FILENAME)?;
     let file = BufReader::new(&file);
 
+    println!("Parsing input file...");
     let input: Vec<AsmLine> = file
         .lines()
         .skip(1)
@@ -169,8 +198,13 @@ fn main() -> Result<(), std::io::Error> {
         })
         .map(|s| s.expect("Parse error"))
         .collect();
+    println!("Parsing complete.");
+    println!();
 
-    input.into_iter().for_each(|l| println!("{:?}", l));
+    println!("Generating 6502 code...");
+    input.into_iter().for_each(|l| print!("{}", l));
+    println!("Code generation complete.");
+    println!();
 
     Ok(())
 }
