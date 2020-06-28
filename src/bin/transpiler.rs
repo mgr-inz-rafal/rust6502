@@ -186,6 +186,15 @@ impl fmt::Display for AsmLine {
                 }
                 _ => writeln!(f, "Unable to generate code for opcode 'MOV' with combination of arguments: '{:?}' and '{:?}'", l, r),
             },
+            Self::Inc(a) => {
+                match a {
+                    Arg::Register(r) if *r == 'A' => {
+                        writeln!(f, "\tCLC").and_then(|_| writeln!(f, "\tADC #1"))
+
+                    }
+                    _ => writeln!(f, "Unable to generate code for opcode 'INC' with argument: '{:?}'", a),
+                }
+            }
             _ => writeln!(f, "Unable to generate 6502 code for line: {:?}", self),
         }
     }
