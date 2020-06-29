@@ -1,6 +1,11 @@
 #![feature(llvm_asm)]
 
 use volatile_register::RW;
+
+const WSYNC: u16 = 0xD40A;
+const COLBK: u16 = 0xD01A;
+const STRIG0: u16 = 0x284;
+
 #[repr(C)]
 pub struct ByteWrapper {
     pub v: RW<u8>,
@@ -45,17 +50,17 @@ pub fn black_box<T>(dummy: T) -> T {
 
 #[inline(never)]
 pub fn asm6502() {
-    const WSYNC: u16 = 0xD40A;
-    const COLBK: u16 = 0xD01A;
-
     let mut wsync = Byte::new(WSYNC);
     let mut colbk = Byte::new(COLBK);
+    let mut strig0 = Byte::new(STRIG0);
 
     let mut x: u8 = 0;
     loop {
         wsync.set(0);
         colbk.set(x);
         x += 1;
+        let a = strig0.get();
+        strig0.set(a);
     }
 }
 
