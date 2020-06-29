@@ -1,9 +1,9 @@
 #![feature(llvm_asm)]
 
-use volatile_register::WO;
+use volatile_register::RW;
 #[repr(C)]
 pub struct ByteWrapper {
-    pub v: WO<u8>,
+    pub v: RW<u8>,
 }
 
 pub struct Byte {
@@ -12,6 +12,10 @@ pub struct Byte {
 
 trait Settable {
     fn set(&mut self, v: u8);
+}
+
+trait Gettable {
+    fn get(&self) -> u8;
 }
 
 impl Byte {
@@ -25,6 +29,12 @@ impl Byte {
 impl Settable for Byte {
     fn set(&mut self, v: u8) {
         unsafe { (*self.b).v.write(v) }
+    }
+}
+
+impl Gettable for Byte {
+    fn get(&self) -> u8 {
+        unsafe { (*self.b).v.read() }
     }
 }
 
