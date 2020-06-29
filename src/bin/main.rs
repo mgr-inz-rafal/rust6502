@@ -2,8 +2,30 @@
 
 use volatile_register::WO;
 #[repr(C)]
-pub struct BYTE {
+pub struct ByteWrapper {
     pub v: WO<u8>,
+}
+
+pub struct Byte {
+    b: *mut ByteWrapper,
+}
+
+trait Settable {
+    fn set(&mut self, v: u8);
+}
+
+impl Byte {
+    fn new(addr: u16) -> Self {
+        Byte {
+            b: addr as *mut ByteWrapper,
+        }
+    }
+}
+
+impl Settable for Byte {
+    fn set(&mut self, v: u8) {
+        unsafe { (*self.b).v.write(v) }
+    }
 }
 
 pub fn black_box<T>(dummy: T) -> T {
@@ -16,15 +38,13 @@ pub fn asm6502() {
     const WSYNC: u16 = 0xD40A;
     const COLBK: u16 = 0xD01A;
 
-    let wsync = WSYNC as *const BYTE;
-    let colbk = COLBK as *const BYTE;
+    let mut wsync = Byte::new(WSYNC);
+    let mut colbk = Byte::new(COLBK);
 
     let mut x: u8 = 0;
     loop {
-        unsafe {
-            (*wsync).v.write(0);
-            (*colbk).v.write(x);
-        }
+        wsync.set(0);
+        colbk.set(x);
         x += 1;
     }
 }
