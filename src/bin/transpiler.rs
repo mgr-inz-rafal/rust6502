@@ -1,26 +1,35 @@
 #![feature(try_trait)]
 
+#[macro_use]
+extern crate lazy_static;
+use std::collections::HashSet;
 use std::fmt;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::option::NoneError;
-use std::str::FromStr;
-use std::str::SplitWhitespace;
+use std::str::{FromStr, SplitWhitespace};
+use std::sync::Mutex;
+
+lazy_static! {
+    static ref VREGS: Mutex<HashSet<char>> = Mutex::new(HashSet::new());
+}
 
 const FILENAME: &str = "output.asm";
 
 #[derive(Debug)]
 enum AsmLineError {
     UnknownError,
+    MutexError,
     UnknownOpcode(String),
     IncorrectNumberOfArguments,
     EmptyArgument,
-    MalformedArgument,
+    MalformedArgumentName(String),
+    MalformedRegisterName(String),
 }
 
 impl From<NoneError> for AsmLineError {
     fn from(_: NoneError) -> Self {
-        AsmLineError::MalformedArgument
+        AsmLineError::UnknownError
     }
 }
 
@@ -45,17 +54,19 @@ macro_rules! opcode_with_1_arg {
 #[derive(Debug)]
 enum Arg {
     Literal(i32),
-    Register(char),
+    Accumulator,
+    VirtualRegister(char),
     AbsoluteAddress(i32),
     _RelativeAddress(i32),
     Label(String),
 }
 
 impl Arg {
-    fn register_from_name(name: &str) -> Option<char> {
+    fn register_from_name(name: &str) -> Result<char, AsmLineError> {
         match name {
-            "eax" | "al" => Some('A'),
-            _ => None,
+            "eax" | "al" => Ok('A'),
+            "ecx" | "cl" => Ok('C'),
+            _ => Err(AsmLineError::MalformedRegisterName(name.to_string())),
         }
     }
 }
@@ -64,7 +75,7 @@ impl fmt::Display for Arg {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Label(s) => write!(f, "{}", s),
-            Self::Register(c) => write!(f, "{}", c),
+            Self::Accumulator => write!(f, "A"),
             _ => write!(f, "Unable to generate 6502 code for argument: {:?}", self),
         }
     }
@@ -73,7 +84,7 @@ impl fmt::Display for Arg {
 impl PartialEq for Arg {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::Register(r1), Self::Register(r2)) => r1 == r2,
+            (Self::Accumulator, Self::Accumulator) => true,
             _ => false,
         }
     }
@@ -95,27 +106,36 @@ impl FromStr for Arg {
                         .filter(|c| !vec![',', '%'].contains(c))
                         .collect::<String>(),
                 )
-                .and_then(|c| Some(Self::Register(c))),
-                '.' => Some(Self::Label({
+                .and_then(|c| match c {
+                    'A' => Ok(Self::Accumulator),
+                    _ => VREGS
+                        .lock()
+                        .and_then(|mut vregs| {
+                            vregs.insert(c);
+                            Ok(Self::VirtualRegister(c))
+                        })
+                        .map_err(|_| AsmLineError::MutexError),
+                }),
+                '.' => Ok(Self::Label({
                     it.skip(1).filter(|c| *c != ',').collect::<String>()
                 })),
-                '0'..='9' => Some(Self::AbsoluteAddress({
+                '0'..='9' => Ok(Self::AbsoluteAddress({
                     it.filter(|c| *c != ',')
                         .collect::<String>()
                         .parse::<i32>()
                         .unwrap()
                 })),
-                '$' => Some(Self::Literal({
+                '$' => Ok(Self::Literal({
                     it.skip(1)
                         .filter(|c| *c != ',')
                         .collect::<String>()
                         .parse::<i32>()
                         .unwrap()
                 })),
-                _ => None,
+                _ => Err(AsmLineError::MalformedArgumentName(s.to_string())),
             }?)
         } else {
-            return Err(AsmLineError::MalformedArgument);
+            return Err(AsmLineError::UnknownError);
         }
     }
 }
@@ -157,6 +177,7 @@ impl FromStr for AsmLine {
         if let Some(opcode) = parts.next() {
             match opcode {
                 "movb" => opcode_with_2_args!(parts, Self::Mov),
+                "movzbl" => opcode_with_2_args!(parts, Self::Mov),
                 "xorl" => opcode_with_2_args!(parts, Self::Xor),
                 "incb" => opcode_with_1_arg!(parts, Self::Inc),
                 "jmp" => opcode_with_1_arg!(parts, Self::Jmp),
@@ -181,16 +202,34 @@ impl fmt::Display for AsmLine {
                         .and_then(|_| writeln!(f, "\tSTA {}", a))
                         .and_then(|_| writeln!(f, "\tPLA"))
                 },
-                (Arg::Register(r), Arg::AbsoluteAddress(a)) => {
-                    writeln!(f, "\tST{} {}", r, a)
-                }
+                (Arg::Accumulator, Arg::AbsoluteAddress(a)) => {
+                    writeln!(f, "\tSTA {}", a)
+                },
+                (Arg::AbsoluteAddress(a), Arg::Accumulator) => {
+                    writeln!(f, "\tLDA {}", a)
+                },
+                (Arg::AbsoluteAddress(a), Arg::VirtualRegister(r)) => {
+                    writeln!(f,
+                        "\tPHA\n\
+                         \tLDA {addr}\n\
+                         \tSTA VREG_{reg}\n\
+                         \tPLA"
+                         , addr=a, reg=r)
+                },
+                (Arg::VirtualRegister(r), Arg::AbsoluteAddress(a)) => {
+                    writeln!(f,
+                        "\tPHA\n\
+                         \tLDA VREG_{reg}\n\
+                         \tSTA {addr}\n\
+                         \tPLA"
+                         , addr=a, reg=r)
+                },
                 _ => writeln!(f, "Unable to generate code for opcode 'MOV' with combination of arguments: '{:?}' and '{:?}'", l, r),
             },
             Self::Inc(a) => {
                 match a {
-                    Arg::Register(r) if *r == 'A' => {
-                        writeln!(f, "\tCLC").and_then(|_| writeln!(f, "\tADC #1"))
-
+                    Arg::Accumulator =>{
+                        writeln!(f, "\tCLC\n\tADC #1")
                     }
                     _ => writeln!(f, "Unable to generate code for opcode 'INC' with argument: '{:?}'", a),
                 }
@@ -204,7 +243,7 @@ fn main() -> Result<(), std::io::Error> {
     let file = File::open(FILENAME)?;
     let file = BufReader::new(&file);
 
-    println!("Parsing input file...");
+    eprintln!("Parsing input file...");
     let input: Vec<AsmLine> = file
         .lines()
         .skip(1)
@@ -219,14 +258,22 @@ fn main() -> Result<(), std::io::Error> {
         })
         .map(|s| s.expect("Parse error"))
         .collect();
-    println!("Parsing complete.");
-    println!();
+    eprintln!("Parsing complete.");
+    eprintln!();
 
-    println!("Generating 6502 code...");
+    eprintln!("Generating 6502 code...");
+    if let Err(e) = VREGS.lock().and_then(|vregs| {
+        vregs
+            .iter()
+            .for_each(|reg| println!(".ZPVAR .BYTE VREG_{}", reg));
+        Ok(())
+    }) {
+        eprintln!("ERROR: Can't generate virtual registers: {}", e);
+    }
     println!("\tORG $2000");
     input.into_iter().for_each(|l| print!("{}", l));
-    println!("Code generation complete.");
-    println!();
+    eprintln!("Code generation complete.");
+    eprintln!();
 
     Ok(())
 }
