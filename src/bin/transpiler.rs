@@ -215,6 +215,11 @@ impl fmt::Display for AsmLine {
                          \tPLA"
                          , literal=l, addr=a)
                 },
+                (Arg::Literal(l), Arg::Accumulator) => {
+                    writeln!(f,
+                        "\tLDA #{literal}"
+                         , literal=l)
+                },
                 (Arg::Accumulator, Arg::AbsoluteAddress(a)) => {
                     writeln!(f, "\tSTA {}", a)
                 },
