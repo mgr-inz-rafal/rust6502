@@ -66,6 +66,7 @@ impl Arg {
         match name {
             "eax" | "al" => Ok('A'),
             "ecx" | "cl" => Ok('C'),
+            "edx" => Ok('D'),
             _ => Err(AsmLineError::MalformedRegisterName(name.to_string())),
         }
     }
@@ -144,6 +145,7 @@ impl FromStr for Arg {
 enum AsmLine {
     Label(String),
     Xor(Arg, Arg),
+    Adc(Arg, Arg),
     Mov(Arg, Arg),
     Inc(Arg),
     Jmp(Arg),
@@ -176,9 +178,9 @@ impl FromStr for AsmLine {
         let mut parts = line.split_whitespace();
         if let Some(opcode) = parts.next() {
             match opcode {
-                "movb" => opcode_with_2_args!(parts, Self::Mov),
-                "movzbl" => opcode_with_2_args!(parts, Self::Mov),
+                "movb" | "movzbl" => opcode_with_2_args!(parts, Self::Mov),
                 "xorl" => opcode_with_2_args!(parts, Self::Xor),
+                "addb" => opcode_with_2_args!(parts, Self::Adc),
                 "incb" => opcode_with_1_arg!(parts, Self::Inc),
                 "jmp" => opcode_with_1_arg!(parts, Self::Jmp),
                 _ => return Err(AsmLineError::UnknownOpcode(opcode.to_string())),
@@ -195,12 +197,23 @@ impl fmt::Display for AsmLine {
             Self::Label(l) => writeln!(f, "{}", l),
             Self::Jmp(l) => writeln!(f, "\tJMP {}", l),
             Self::Xor(l, r) if l == r => writeln!(f, "\tLD{} #0", l),
+            Self::Adc(l, r) => match (l, r) {
+                (Arg::AbsoluteAddress(a), Arg::Accumulator) => {
+                    writeln!(f,
+                        "\tCLC\n\
+                         \tADC {}"
+                         ,a)
+                },
+                _ => writeln!(f, "Unable to generate code for opcode 'ADC' with combination of arguments: '{:?}' and '{:?}'", l, r),
+            },
             Self::Mov(l, r) => match (l, r) {
                 (Arg::Literal(l), Arg::AbsoluteAddress(a)) => {
-                    writeln!(f, "\tPHA")
-                        .and_then(|_| writeln!(f, "\tLDA #{}", l))
-                        .and_then(|_| writeln!(f, "\tSTA {}", a))
-                        .and_then(|_| writeln!(f, "\tPLA"))
+                    writeln!(f,
+                        "\tPHA\n\
+                         \tLDA #{literal}\n\
+                         \tSTA {addr}\n\
+                         \tPLA"
+                         , literal=l, addr=a)
                 },
                 (Arg::Accumulator, Arg::AbsoluteAddress(a)) => {
                     writeln!(f, "\tSTA {}", a)

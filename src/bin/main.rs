@@ -52,15 +52,13 @@ pub fn black_box<T>(dummy: T) -> T {
 pub fn asm6502() {
     let mut wsync = Byte::new(WSYNC);
     let mut colbk = Byte::new(COLBK);
-    let mut strig0 = Byte::new(STRIG0);
+    let strig0 = Byte::new(STRIG0);
 
     let mut x: u8 = 0;
     loop {
         wsync.set(0);
         colbk.set(x);
-        x += 1;
-        let a = strig0.get();
-        strig0.set(a);
+        x += strig0.get();
     }
 }
 
