@@ -2,17 +2,11 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"type": "cargo",
-			"command": "build",
-			"problemMatcher": [
-				"$rustc"
-			],
-			"label": "rust: cargo build"
-		},
-		{
-			"type": "cargo",
-			"command": "asm",
+			"label": "Generate Assembly",
+			"type": "shell",
+			"command": "cargo",
 			"args": [
+				"asm",
 				"main::asm6502",
 				"--no-color",
 				"--asm-style",
@@ -24,10 +18,35 @@
 			"problemMatcher": [
 				"$rustc"
 			],
-			"label": "rust: cargo asm",
 			"group": {
-				"kind": "build",
-				"isDefault": true
+				"kind": "build"
+			}
+		},
+		{
+			"label": "Generate Assembly - Optimized for Size",
+			"type": "shell",
+			"command": "./build_minimized.sh",
+			"problemMatcher": [
+				"$rustc"
+			],
+			"group": {
+				"kind": "build"
+			}
+		},
+		{
+			"label": "Transpile to 6502",
+			"type": "shell",
+			"command": "cargo",
+			"args": [
+				"run",
+				"--bin",
+				"transpiler"
+			],
+			"problemMatcher": [
+				"$rustc"
+			],
+			"group": {
+				"kind": "build"
 			}
 		}
 	]
