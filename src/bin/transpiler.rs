@@ -163,11 +163,22 @@ impl AsmLine {
     where
         I: IntoIterator<Item = &'a String>,
     {
-        let args = parts
-            .into_iter()
-            .take(2)
-            .map(String::to_owned)
-            .collect::<Vec<String>>();
+        let mut args: Vec<String> = vec![];
+
+        let mut i = parts.into_iter();
+        for _ in 0..2 {
+            for first in i.next() {
+                if first.starts_with("(") {
+                    i.next()
+                        .and_then(|second| Some(args.push(format!("{}{}", first, second))));
+                } else {
+                    args.push(first.to_owned());
+                }
+            }
+        }
+
+        println!("My args: {:#?}", args);
+
         if args.len() == expected_count {
             Ok(args)
         } else {
