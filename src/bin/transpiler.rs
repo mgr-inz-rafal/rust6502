@@ -7,7 +7,7 @@ use std::fmt;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::option::NoneError;
-use std::str::{FromStr, SplitWhitespace};
+use std::str::FromStr;
 use std::sync::Mutex;
 
 lazy_static! {
@@ -57,7 +57,7 @@ enum Arg {
     Accumulator,
     VirtualRegister(char),
     AbsoluteAddress(i32),
-    SumAddress((char, char)),
+    SumAddress(char, char),
     _RelativeAddress(i32),
     Label(String),
 }
@@ -123,9 +123,15 @@ impl FromStr for Arg {
                 })),
                 '(' => {
                     let args: String = it.collect();
-                    dbg!(args);
+                    let args = args.trim_end_matches(")");
+                    let args = args.trim_start_matches("(");
+                    let args: Vec<String> = args.split(",").map(ToString::to_string).collect();
 
-                    todo!();
+                    // TODO: Simplification: edx => D, ecx => C, etc.
+                    Ok(Self::SumAddress(
+                        args[0].chars().skip(2).next().unwrap(),
+                        args[1].chars().skip(2).next().unwrap(),
+                    ))
                 }
                 '0'..='9' => Ok(Self::AbsoluteAddress({
                     it.filter(|c| *c != ',')
@@ -154,7 +160,9 @@ enum AsmLine {
     Xor(Arg, Arg),
     Adc(Arg, Arg),
     Mov(Arg, Arg),
+    MovZ(Arg, Arg),
     Inc(Arg),
+    Dec(Arg),
     Jmp(Arg),
 }
 
@@ -176,8 +184,6 @@ impl AsmLine {
                 }
             }
         }
-
-        println!("My args: {:#?}", args);
 
         if args.len() == expected_count {
             Ok(args)
@@ -202,10 +208,12 @@ impl FromStr for AsmLine {
         let mut iter = parts.iter();
         if let Some(opcode) = iter.next() {
             match opcode.as_str() {
-                "movb" | "movzbl" | "movl" => opcode_with_2_args!(iter, Self::Mov),
+                "movb" | "movl" => opcode_with_2_args!(iter, Self::Mov),
+                "movzbl" => opcode_with_2_args!(iter, Self::MovZ),
                 "xorl" => opcode_with_2_args!(iter, Self::Xor),
                 "addb" => opcode_with_2_args!(iter, Self::Adc),
                 "incb" => opcode_with_1_arg!(iter, Self::Inc),
+                "decb" => opcode_with_1_arg!(iter, Self::Dec),
                 "jmp" => opcode_with_1_arg!(iter, Self::Jmp),
                 _ => return Err(AsmLineError::UnknownOpcode(opcode.to_string())),
             }
@@ -228,9 +236,47 @@ impl fmt::Display for AsmLine {
                          \tADC {}"
                          ,a)
                 },
+                (Arg::Literal(l), Arg::VirtualRegister(r)) if l < &0i32  => {
+                    writeln!(f,
+                        "\tPHA\n\
+                         \tSBW VREG_{reg} #{literal}\n\
+                         \tPLA"
+                         , reg=r, literal=-l)
+                },
                 _ => writeln!(f, "Unable to generate code for opcode 'ADC' with combination of arguments: '{:?}' and '{:?}'", l, r),
             },
+            Self::MovZ(l, r) => match (l, r) {
+                (Arg::VirtualRegister(l), Arg::VirtualRegister(r)) if l == r => {
+                    // Do nothing
+                    Ok(())
+                },
+                (Arg::Accumulator, Arg::VirtualRegister(r)) => {
+                    writeln!(f,
+                        "\tSTA VREG_{reg}\n\
+                         \tPHA\n\
+                         \tLDA #0\n\
+                         \tSTA VREG_{reg}+1\n\
+                         \tPLA"
+                         , reg=r)
+                },
+                _ => writeln!(f, "Unable to generate code for opcode 'MOVZ' with combination of arguments: '{:?}' and '{:?}'", l, r),
+            },
             Self::Mov(l, r) => match (l, r) {
+                (Arg::Literal(l), Arg::SumAddress(x, y)) => {
+                    writeln!(f,
+                        "\tPHA\n\
+                         \tTYA\n\
+                         \tPHA\n\
+                         \tMWA VREG_{op1} TMPW\n\
+                         \tADW TMPW VREG_{op2}\n\
+                         \tLDY #0\n\
+                         \tLDA #{literal}\n\
+                         \tSTA (TMPW),y\n\
+                         \tPLA\n\
+                         \tTAY\n\
+                         \tPLA"
+                         , literal=l, op1=x, op2=y)
+                },
                 (Arg::Literal(l), Arg::AbsoluteAddress(a)) => {
                     writeln!(f,
                         "\tPHA\n\
@@ -249,6 +295,22 @@ impl fmt::Display for AsmLine {
                 },
                 (Arg::AbsoluteAddress(a), Arg::Accumulator) => {
                     writeln!(f, "\tLDA {}", a)
+                },
+                (Arg::Literal(l), Arg::VirtualRegister(r)) => {
+                    writeln!(f,
+                        "\tPHA\n\
+                         \tMWA #{literal} VREG_{reg}\n\
+                         \tPLA"
+                         , literal=l, reg=r)
+                },
+                (Arg::Accumulator, Arg::VirtualRegister(r)) => {
+                    writeln!(f,
+                        "\tPHA\n\
+                         \tSTA VREG_{reg}\n\
+                         \tLDA #0\n\
+                         \tSTA VREG_{reg}+1\n\
+                         \tPLA"
+                         , reg=r)
                 },
                 (Arg::AbsoluteAddress(a), Arg::VirtualRegister(r)) => {
                     writeln!(f,
@@ -274,6 +336,17 @@ impl fmt::Display for AsmLine {
                         writeln!(f, "\tCLC\n\tADC #1")
                     }
                     _ => writeln!(f, "Unable to generate code for opcode 'INC' with argument: '{:?}'", a),
+                }
+            }
+            Self::Dec(a) => {
+                match a {
+                    Arg::Accumulator =>{
+                        writeln!(f, "\tSEC\n\tSBC #1")
+                    }
+                    Arg::VirtualRegister(r) =>{
+                        writeln!(f, "\tDEW VREG_{reg}", reg=r)
+                    }
+                    _ => writeln!(f, "Unable to generate code for opcode 'DEC' with argument: '{:?}'", a),
                 }
             }
             _ => writeln!(f, "Unable to generate 6502 code for line: {:?}", self),
@@ -307,11 +380,12 @@ fn main() -> Result<(), std::io::Error> {
     if let Err(e) = VREGS.lock().and_then(|vregs| {
         vregs
             .iter()
-            .for_each(|reg| println!(".ZPVAR .BYTE VREG_{}", reg));
+            .for_each(|reg| println!(".ZPVAR .WORD VREG_{}", reg));
         Ok(())
     }) {
         eprintln!("ERROR: Can't generate virtual registers: {}", e);
     }
+    println!("\t.ZPVAR .WORD TMPW");
     println!("\tORG $2000");
     input.into_iter().for_each(|l| print!("{}", l));
     eprintln!("Code generation complete.");

@@ -86,7 +86,7 @@ pub fn black_box<T>(dummy: T) -> T {
 }
 
 #[inline(never)]
-pub fn asm6502() {
+pub fn asm6502_1() {
     let mut wsync = Byte::new(WSYNC);
     let mut colbk = Byte::new(COLBK);
     let strig0 = Byte::new(STRIG0);
@@ -114,7 +114,7 @@ pub fn asm6502() {
 
 
 #[inline(never)]
-pub fn asm6502_1() {
+pub fn asm6502() {
     let mut wsync = Byte::new(WSYNC);
     let mut colbk = Byte::new(COLBK);
     let strig0 = Byte::new(STRIG0);
@@ -127,20 +127,17 @@ pub fn asm6502_1() {
         screen.putchar(pos + 2, 0, 'l');
         screen.putchar(pos + 3, 0, 'l');
         screen.putchar(pos + 4, 0, 'o');
-        screen.putchar(pos + 5, 0, ' ');
-        screen.putchar(pos + 6, 0, 'R');
-        screen.putchar(pos + 7, 0, 'u');
-        screen.putchar(pos + 8, 0, 's');
-        screen.putchar(pos + 9, 0, 't');
-        pos += 1;
+            pos += 1;
     }
 
+    /*
     let mut x: u8 = 0;
     loop {
         wsync.set(0);
         colbk.set(x);
         x += strig0.get();
     }
+    */
 }
 
 
