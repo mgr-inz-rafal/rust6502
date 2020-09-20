@@ -35,7 +35,7 @@ impl From<NoneError> for AsmLineError {
 
 macro_rules! opcode_with_2_args {
     ($parts:expr, $opcode:path) => {
-        return AsmLine::args(&mut $parts, 2).and_then(|args| {
+        return AsmLine::args($parts, 2).and_then(|args| {
             Ok($opcode(
                 args[0].parse::<Arg>().unwrap(),
                 args[1].parse::<Arg>().unwrap(),
@@ -46,7 +46,7 @@ macro_rules! opcode_with_2_args {
 
 macro_rules! opcode_with_1_arg {
     ($parts:expr, $opcode:path) => {
-        return AsmLine::args(&mut $parts, 1)
+        return AsmLine::args($parts, 1)
             .and_then(|args| Ok($opcode(args[0].parse::<Arg>().unwrap())));
     };
 }
@@ -57,6 +57,7 @@ enum Arg {
     Accumulator,
     VirtualRegister(char),
     AbsoluteAddress(i32),
+    SumAddress((char, char)),
     _RelativeAddress(i32),
     Label(String),
 }
@@ -66,7 +67,7 @@ impl Arg {
         match name {
             "eax" | "al" => Ok('A'),
             "ecx" | "cl" => Ok('C'),
-            "edx" => Ok('D'),
+            "edx" | "dl" => Ok('D'),
             _ => Err(AsmLineError::MalformedRegisterName(name.to_string())),
         }
     }
@@ -120,6 +121,12 @@ impl FromStr for Arg {
                 '.' => Ok(Self::Label({
                     it.skip(1).filter(|c| *c != ',').collect::<String>()
                 })),
+                '(' => {
+                    let args: String = it.collect();
+                    dbg!(args);
+
+                    todo!();
+                }
                 '0'..='9' => Ok(Self::AbsoluteAddress({
                     it.filter(|c| *c != ',')
                         .collect::<String>()
@@ -152,11 +159,15 @@ enum AsmLine {
 }
 
 impl AsmLine {
-    fn args<'a>(
-        parts: &'a mut SplitWhitespace,
-        expected_count: usize,
-    ) -> Result<Vec<&'a str>, AsmLineError> {
-        let args = parts.take(2).collect::<Vec<&str>>();
+    fn args<'a, I>(parts: I, expected_count: usize) -> Result<Vec<String>, AsmLineError>
+    where
+        I: IntoIterator<Item = &'a String>,
+    {
+        let args = parts
+            .into_iter()
+            .take(2)
+            .map(String::to_owned)
+            .collect::<Vec<String>>();
         if args.len() == expected_count {
             Ok(args)
         } else {
@@ -175,14 +186,16 @@ impl FromStr for AsmLine {
             return Ok(Self::Label(line[1..].to_string()));
         }
 
-        let mut parts = line.split_whitespace();
-        if let Some(opcode) = parts.next() {
-            match opcode {
-                "movb" | "movzbl" => opcode_with_2_args!(parts, Self::Mov),
-                "xorl" => opcode_with_2_args!(parts, Self::Xor),
-                "addb" => opcode_with_2_args!(parts, Self::Adc),
-                "incb" => opcode_with_1_arg!(parts, Self::Inc),
-                "jmp" => opcode_with_1_arg!(parts, Self::Jmp),
+        let parts: Vec<String> = line.split_whitespace().map(ToString::to_string).collect();
+
+        let mut iter = parts.iter();
+        if let Some(opcode) = iter.next() {
+            match opcode.as_str() {
+                "movb" | "movzbl" | "movl" => opcode_with_2_args!(iter, Self::Mov),
+                "xorl" => opcode_with_2_args!(iter, Self::Xor),
+                "addb" => opcode_with_2_args!(iter, Self::Adc),
+                "incb" => opcode_with_1_arg!(iter, Self::Inc),
+                "jmp" => opcode_with_1_arg!(iter, Self::Jmp),
                 _ => return Err(AsmLineError::UnknownOpcode(opcode.to_string())),
             }
         }
