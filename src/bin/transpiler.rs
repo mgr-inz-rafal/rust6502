@@ -402,10 +402,13 @@ fn main() -> Result<(), std::io::Error> {
         .skip(1)
         .enumerate()
         .map(|(num, l)| {
-            print!("Line {:4}\n", num);
+            print!("Line {:4}:\t", num);
             l.expect("Parse error")
         })
-        .map(|s| s.parse::<AsmLine>())
+        .map(|s| {
+            println!("{}", s);
+            s.parse::<AsmLine>()
+        })
         .map(|s| s.expect("Parse error"))
         .map(|s| {
             transpiler.check_for_virtual_registers(&s);
