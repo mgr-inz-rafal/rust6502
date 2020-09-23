@@ -358,30 +358,15 @@ impl Transpiler {
 
     fn check_for_virtual_registers(&mut self, asm_line: &AsmLine) {
         match &asm_line {
-            AsmLine::Xor(a1, a2) => {
-                self.insert_if_is_virtual_register(a1);
-                self.insert_if_is_virtual_register(a2);
+            AsmLine::Xor(arg1, arg2)
+            | AsmLine::Adc(arg1, arg2)
+            | AsmLine::Mov(arg1, arg2)
+            | AsmLine::MovZ(arg1, arg2) => {
+                self.insert_if_is_virtual_register(arg1);
+                self.insert_if_is_virtual_register(arg2);
             }
-            AsmLine::Adc(a1, a2) => {
-                self.insert_if_is_virtual_register(a1);
-                self.insert_if_is_virtual_register(a2);
-            }
-            AsmLine::Mov(a1, a2) => {
-                self.insert_if_is_virtual_register(a1);
-                self.insert_if_is_virtual_register(a2);
-            }
-            AsmLine::MovZ(a1, a2) => {
-                self.insert_if_is_virtual_register(a1);
-                self.insert_if_is_virtual_register(a2);
-            }
-            AsmLine::Inc(a) => {
-                self.insert_if_is_virtual_register(a);
-            }
-            AsmLine::Dec(a) => {
-                self.insert_if_is_virtual_register(a);
-            }
-            AsmLine::Jmp(a) => {
-                self.insert_if_is_virtual_register(a);
+            AsmLine::Inc(arg) | AsmLine::Dec(arg) | AsmLine::Jmp(arg) => {
+                self.insert_if_is_virtual_register(arg);
             }
             _ => {}
         };
@@ -407,10 +392,7 @@ fn main() -> Result<(), std::io::Error> {
         })
         .map(|s| {
             println!("{}", s);
-            s.parse::<AsmLine>()
-        })
-        .map(|s| s.expect("Parse error"))
-        .map(|s| {
+            let s = s.parse::<AsmLine>().expect("Parse error");
             transpiler.check_for_virtual_registers(&s);
             s
         })
