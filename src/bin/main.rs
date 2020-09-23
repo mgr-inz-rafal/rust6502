@@ -122,12 +122,18 @@ pub fn asm6502() {
 
     let mut pos = 1;
     loop {
-        screen.putchar(pos + 0, 0, 'H');
-        screen.putchar(pos + 1, 0, 'e');
-        screen.putchar(pos + 2, 0, 'l');
+        screen.putchar(pos + 0, 0, ' ');
+        screen.putchar(pos + 1, 0, 'H');
+        screen.putchar(pos + 2, 0, 'e');
         screen.putchar(pos + 3, 0, 'l');
-        screen.putchar(pos + 4, 0, 'o');
-            pos += 1;
+        screen.putchar(pos + 4, 0, 'l');
+        screen.putchar(pos + 5, 0, 'o');
+        pos += 1;
+        /*
+        if pos == 70 {
+            pos = 1
+        }
+        */
     }
 
     /*

@@ -1,25 +1,17 @@
 #![feature(try_trait)]
 
-#[macro_use]
-extern crate lazy_static;
 use std::collections::HashSet;
 use std::fmt;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::option::NoneError;
 use std::str::FromStr;
-use std::sync::Mutex;
-
-lazy_static! {
-    static ref VREGS: Mutex<HashSet<char>> = Mutex::new(HashSet::new());
-}
 
 const FILENAME: &str = "output.asm";
 
 #[derive(Debug)]
 enum AsmLineError {
     UnknownError,
-    MutexError,
     UnknownOpcode(String),
     IncorrectNumberOfArguments,
     EmptyArgument,
@@ -110,13 +102,7 @@ impl FromStr for Arg {
                 )
                 .and_then(|c| match c {
                     'A' => Ok(Self::Accumulator),
-                    _ => VREGS
-                        .lock()
-                        .and_then(|mut vregs| {
-                            vregs.insert(c);
-                            Ok(Self::VirtualRegister(c))
-                        })
-                        .map_err(|_| AsmLineError::MutexError),
+                    _ => Ok(Self::VirtualRegister(c)),
                 }),
                 '.' => Ok(Self::Label({
                     it.skip(1).filter(|c| *c != ',').collect::<String>()
@@ -354,7 +340,28 @@ impl fmt::Display for AsmLine {
     }
 }
 
+#[derive(Debug)]
+struct Transpiler {
+    pub vregs: HashSet<char>,
+}
+
+impl Transpiler {
+    fn add_vreg(&mut self, r: char) {
+        self.vregs.insert(r);
+    }
+
+    pub fn insert_if_is_virtual_register(&mut self, arg: &Arg) {
+        if let Arg::VirtualRegister(r) = arg {
+            self.add_vreg(*r)
+        }
+    }
+}
+
 fn main() -> Result<(), std::io::Error> {
+    let mut transpiler = Transpiler {
+        vregs: HashSet::new(),
+    };
+
     let file = File::open(FILENAME)?;
     let file = BufReader::new(&file);
 
@@ -364,27 +371,52 @@ fn main() -> Result<(), std::io::Error> {
         .skip(1)
         .enumerate()
         .map(|(num, l)| {
-            print!("Line {:4}\t\t", num);
-            l.unwrap()
+            print!("Line {:4}\n", num);
+            l.expect("Parse error")
         })
-        .map(|s| {
-            println!("{}", s);
-            s.parse::<AsmLine>()
-        })
+        .map(|s| s.parse::<AsmLine>())
         .map(|s| s.expect("Parse error"))
+        .map(|s| {
+            match &s {
+                AsmLine::Xor(a1, a2) => {
+                    transpiler.insert_if_is_virtual_register(a1);
+                    transpiler.insert_if_is_virtual_register(a2);
+                }
+                AsmLine::Adc(a1, a2) => {
+                    transpiler.insert_if_is_virtual_register(a1);
+                    transpiler.insert_if_is_virtual_register(a2);
+                }
+                AsmLine::Mov(a1, a2) => {
+                    transpiler.insert_if_is_virtual_register(a1);
+                    transpiler.insert_if_is_virtual_register(a2);
+                }
+                AsmLine::MovZ(a1, a2) => {
+                    transpiler.insert_if_is_virtual_register(a1);
+                    transpiler.insert_if_is_virtual_register(a2);
+                }
+                AsmLine::Inc(a) => {
+                    transpiler.insert_if_is_virtual_register(a);
+                }
+                AsmLine::Dec(a) => {
+                    transpiler.insert_if_is_virtual_register(a);
+                }
+                AsmLine::Jmp(a) => {
+                    transpiler.insert_if_is_virtual_register(a);
+                }
+                _ => {}
+            };
+            s
+        })
         .collect();
+
     eprintln!("Parsing complete.");
     eprintln!();
 
     eprintln!("Generating 6502 code...");
-    if let Err(e) = VREGS.lock().and_then(|vregs| {
-        vregs
-            .iter()
-            .for_each(|reg| println!(".ZPVAR .WORD VREG_{}", reg));
-        Ok(())
-    }) {
-        eprintln!("ERROR: Can't generate virtual registers: {}", e);
-    }
+    transpiler
+        .vregs
+        .iter()
+        .for_each(|reg| println!(".ZPVAR .WORD VREG_{}", reg));
     println!("\t.ZPVAR .WORD TMPW");
     println!("\tORG $2000");
     input.into_iter().for_each(|l| print!("{}", l));
