@@ -111,8 +111,6 @@ pub fn asm6502_1() {
     }
 }
 
-
-
 #[inline(never)]
 pub fn asm6502() {
     let mut wsync = Byte::new(WSYNC);
@@ -145,7 +143,6 @@ pub fn asm6502() {
     }
     */
 }
-
 
 pub fn main() {
     let _ = asm6502();
