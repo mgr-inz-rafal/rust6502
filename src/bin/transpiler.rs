@@ -382,12 +382,12 @@ fn main() -> Result<(), std::io::Error> {
     let file = BufReader::new(&file);
 
     eprintln!("Parsing input file...");
-    let input: Vec<AsmLine> = file
-        .lines()
+    println!("\tORG $2000");
+    file.lines()
         .skip(1)
         .enumerate()
         .map(|(num, l)| {
-            print!("Line {:4}:\t", num);
+            print!("; Line {:4}:\t", num);
             l.expect("Parse error")
         })
         .map(|s| {
@@ -396,21 +396,13 @@ fn main() -> Result<(), std::io::Error> {
             transpiler.check_for_virtual_registers(&s);
             s
         })
-        .collect();
+        .for_each(|l| print!("{}\n", l));
 
-    eprintln!("Parsing complete.");
-    eprintln!();
-
-    eprintln!("Generating 6502 code...");
     transpiler
         .vregs
         .iter()
         .for_each(|reg| println!(".ZPVAR .WORD VREG_{}", reg));
-    println!("\t.ZPVAR .WORD TMPW");
-    println!("\tORG $2000");
-    input.into_iter().for_each(|l| print!("{}", l));
-    eprintln!("Code generation complete.");
-    eprintln!();
+    println!(".ZPVAR .WORD TMPW");
 
     Ok(())
 }
