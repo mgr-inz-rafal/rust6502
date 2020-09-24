@@ -1,29 +1,6 @@
-#![feature(try_trait)]
+use std::{fmt, option::NoneError, str::FromStr};
 
-use std::collections::HashSet;
-use std::fmt;
-use std::fs::File;
-use std::io::{BufRead, BufReader};
-use std::option::NoneError;
-use std::str::FromStr;
-
-const FILENAME: &str = "output.asm";
-
-#[derive(Debug)]
-enum AsmLineError {
-    UnknownError,
-    UnknownOpcode(String),
-    IncorrectNumberOfArguments,
-    EmptyArgument,
-    MalformedArgumentName(String),
-    MalformedRegisterName(String),
-}
-
-impl From<NoneError> for AsmLineError {
-    fn from(_: NoneError) -> Self {
-        AsmLineError::UnknownError
-    }
-}
+use crate::arg::Arg;
 
 macro_rules! opcode_with_2_args {
     ($parts:expr, $opcode:path) => {
@@ -44,104 +21,23 @@ macro_rules! opcode_with_1_arg {
 }
 
 #[derive(Debug)]
-enum Arg {
-    Literal(i32),
-    Accumulator,
-    VirtualRegister(char),
-    AbsoluteAddress(i32),
-    SumAddress(char, char),
-    _RelativeAddress(i32),
-    Label(String),
+pub(in crate) enum AsmLineError {
+    UnknownError,
+    UnknownOpcode(String),
+    IncorrectNumberOfArguments,
+    EmptyArgument,
+    MalformedArgumentName(String),
+    MalformedRegisterName(String),
 }
 
-impl Arg {
-    fn register_from_name(name: &str) -> Result<char, AsmLineError> {
-        match name {
-            "eax" | "al" => Ok('A'),
-            "ecx" | "cl" => Ok('C'),
-            "edx" | "dl" => Ok('D'),
-            _ => Err(AsmLineError::MalformedRegisterName(name.to_string())),
-        }
-    }
-}
-
-impl fmt::Display for Arg {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::Label(s) => write!(f, "{}", s),
-            Self::Accumulator => write!(f, "A"),
-            _ => write!(f, "Unable to generate 6502 code for argument: {:?}", self),
-        }
-    }
-}
-
-impl PartialEq for Arg {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Accumulator, Self::Accumulator) => true,
-            _ => false,
-        }
-    }
-}
-
-impl FromStr for Arg {
-    type Err = AsmLineError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.is_empty() {
-            return Err(AsmLineError::EmptyArgument);
-        }
-
-        let mut it = s.chars().peekable();
-        if let Some(c) = it.peek() {
-            Ok(match c {
-                '%' => Arg::register_from_name(
-                    &it.skip(1)
-                        .filter(|c| !vec![',', '%'].contains(c))
-                        .collect::<String>(),
-                )
-                .and_then(|c| match c {
-                    'A' => Ok(Self::Accumulator),
-                    _ => Ok(Self::VirtualRegister(c)),
-                }),
-                '.' => Ok(Self::Label({
-                    it.skip(1).filter(|c| *c != ',').collect::<String>()
-                })),
-                '(' => {
-                    let args: String = it.collect();
-                    let args = args.trim_end_matches(")");
-                    let args = args.trim_start_matches("(");
-                    let args: Vec<String> = args.split(",").map(ToString::to_string).collect();
-
-                    // TODO: Simplification: edx => D, ecx => C, etc.
-                    Ok(Self::SumAddress(
-                        args[0].chars().skip(2).next().unwrap(),
-                        args[1].chars().skip(2).next().unwrap(),
-                    ))
-                }
-                '0'..='9' => Ok(Self::AbsoluteAddress({
-                    it.filter(|c| *c != ',')
-                        .collect::<String>()
-                        .parse::<i32>()
-                        .unwrap()
-                })),
-                '$' => Ok(Self::Literal({
-                    it.skip(1)
-                        .filter(|c| *c != ',')
-                        .collect::<String>()
-                        .parse::<i32>()
-                        .unwrap()
-                })),
-                _ => Err(AsmLineError::MalformedArgumentName(s.to_string())),
-            }?)
-        } else {
-            return Err(AsmLineError::UnknownError);
-        }
+impl From<NoneError> for AsmLineError {
+    fn from(_: NoneError) -> Self {
+        AsmLineError::UnknownError
     }
 }
 
 #[derive(Debug)]
-enum AsmLine {
+pub(in crate) enum AsmLine {
     Label(String),
     Xor(Arg, Arg),
     Adc(Arg, Arg),
@@ -356,76 +252,4 @@ impl fmt::Display for AsmLine {
             _ => writeln!(f, "Unable to generate 6502 code for line: {:?}", self),
         }
     }
-}
-
-#[derive(Debug)]
-struct Transpiler {
-    pub vregs: HashSet<char>,
-}
-
-impl Transpiler {
-    fn add_vreg(&mut self, r: char) {
-        self.vregs.insert(r);
-    }
-
-    fn insert_if_is_virtual_register(&mut self, arg: &Arg) {
-        if let Arg::VirtualRegister(r) = arg {
-            self.add_vreg(*r)
-        }
-    }
-
-    fn check_for_virtual_registers(&mut self, asm_line: &AsmLine) {
-        match &asm_line {
-            AsmLine::Xor(arg1, arg2)
-            | AsmLine::Adc(arg1, arg2)
-            | AsmLine::Mov(arg1, arg2)
-            | AsmLine::MovZ(arg1, arg2) => {
-                self.insert_if_is_virtual_register(arg1);
-                self.insert_if_is_virtual_register(arg2);
-            }
-            AsmLine::Inc(arg) | AsmLine::Dec(arg) | AsmLine::Jmp(arg) => {
-                self.insert_if_is_virtual_register(arg);
-            }
-            _ => {}
-        };
-    }
-}
-
-fn main() -> Result<(), std::io::Error> {
-    let mut transpiler = Transpiler {
-        vregs: HashSet::new(),
-    };
-
-    let file = File::open(FILENAME)?;
-    let file = BufReader::new(&file);
-
-    eprintln!("Parsing input file...");
-    println!("\tORG $2000");
-    file.lines()
-        .skip(1)
-        .enumerate()
-        .map(|(num, l)| {
-            print!("; Line {:4}:\t", num);
-            l.expect("Parse error")
-        })
-        .map(|s| {
-            println!("{}", s);
-            let s = s.parse::<AsmLine>().expect("Parse error");
-            transpiler.check_for_virtual_registers(&s);
-            s
-        })
-        .for_each(|l| print!("{}\n", l));
-
-    const ZERO_PAGE_BASE: usize = 0x80;
-    const VIRTUAL_REGISTERS_BASE: usize = ZERO_PAGE_BASE + 2;
-    println!("TMPW equ {}", ZERO_PAGE_BASE);
-    transpiler
-        .vregs
-        .iter()
-        .enumerate()
-        .for_each(|(index, reg)| {
-            println!("VREG_{} equ {}", reg, VIRTUAL_REGISTERS_BASE + (index << 1));
-        });
-
-    Ok(())
 }

@@ -1,5 +1,4 @@
 #![feature(llvm_asm, const_if_match)]
-
 use volatile_register::RW;
 
 const WSYNC: u16 = 0xD40A;
@@ -142,8 +141,4 @@ pub fn asm6502() {
         x += strig0.get();
     }
     */
-}
-
-pub fn main() {
-    let _ = asm6502();
 }
