@@ -225,7 +225,13 @@ impl fmt::Display for AsmLine {
                 (Arg::Literal(l), Arg::VirtualRegister(r)) if l < &0i32  => {
                     writeln!(f,
                         "\tPHA\n\
-                         \tSBW VREG_{reg} #{literal}\n\
+                         \tSEC\n\
+                         \tLDA VREG_{reg}\n\
+                         \tSBC #<{literal}\n\
+                         \tSTA VREG_{reg}\n\
+                         \tLDA VREG_{reg}+1\n\
+                         \tSBC #>{literal}\n\
+                         \tSTA VREG_{reg}+1\n\
                          \tPLA"
                          , reg=r, literal=-l)
                 },
@@ -253,8 +259,17 @@ impl fmt::Display for AsmLine {
                         "\tPHA\n\
                          \tTYA\n\
                          \tPHA\n\
-                         \tMWA VREG_{op1} TMPW\n\
-                         \tADW TMPW VREG_{op2}\n\
+                         \tLDA VREG_{op1}\n\
+                         \tSTA TMPW\n\
+                         \tLDA VREG_{op1}+1\n\
+                         \tSTA TMPW+1\n\
+                         \tCLC\n\
+                         \tLDA TMPW\n\
+                         \tADC VREG_{op2}\n\
+                         \tSTA TMPW\n\
+                         \tLDA TMPW+1\n\
+                         \tADC VREG_{op2}+1\n\
+                         \tSTA TMPW+1\n\
                          \tLDY #0\n\
                          \tLDA #{literal}\n\
                          \tSTA (TMPW),y\n\
@@ -285,7 +300,10 @@ impl fmt::Display for AsmLine {
                 (Arg::Literal(l), Arg::VirtualRegister(r)) => {
                     writeln!(f,
                         "\tPHA\n\
-                         \tMWA #{literal} VREG_{reg}\n\
+                         \tLDA #<{literal}\n\
+                         \tSTA VREG_{reg}\n\
+                         \tLDA #>{literal}\n\
+                         \tSTA VREG_{reg}+1\n\
                          \tPLA"
                          , literal=l, reg=r)
                 },
@@ -398,11 +416,16 @@ fn main() -> Result<(), std::io::Error> {
         })
         .for_each(|l| print!("{}\n", l));
 
+    const ZERO_PAGE_BASE: usize = 0x80;
+    const VIRTUAL_REGISTERS_BASE: usize = ZERO_PAGE_BASE + 2;
+    println!("TMPW equ {}", ZERO_PAGE_BASE);
     transpiler
         .vregs
         .iter()
-        .for_each(|reg| println!(".ZPVAR .WORD VREG_{}", reg));
-    println!(".ZPVAR .WORD TMPW");
+        .enumerate()
+        .for_each(|(index, reg)| {
+            println!("VREG_{} equ {}", reg, VIRTUAL_REGISTERS_BASE + (index << 1));
+        });
 
     Ok(())
 }
