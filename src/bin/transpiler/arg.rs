@@ -17,7 +17,9 @@ impl Arg {
         match name {
             "eax" | "al" => Ok('A'),
             "ecx" | "cl" => Ok('C'),
+            "ebx" | "bl"=> Ok('B'),
             "edx" | "dl" => Ok('D'),
+            "esi" => Ok('S'),
             _ => Err(AsmLineError::MalformedRegisterName(name.to_string())),
         }
     }

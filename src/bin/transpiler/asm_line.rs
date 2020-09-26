@@ -43,9 +43,12 @@ pub(in crate) enum AsmLine {
     Adc(Arg, Arg),
     Mov(Arg, Arg),
     MovZ(Arg, Arg),
+    Cmp(Arg, Arg),
+    CMov(Arg, Arg),
     Inc(Arg),
     Dec(Arg),
     Jmp(Arg),
+    Push(Arg),
 }
 
 impl AsmLine {
@@ -94,8 +97,11 @@ impl FromStr for AsmLine {
                 "movzbl" => opcode_with_2_args!(iter, Self::MovZ),
                 "xorl" => opcode_with_2_args!(iter, Self::Xor),
                 "addb" => opcode_with_2_args!(iter, Self::Adc),
+                "cmpb" => opcode_with_2_args!(iter, Self::Cmp),
+                "cmovel" => opcode_with_2_args!(iter, Self::CMov),
                 "incb" => opcode_with_1_arg!(iter, Self::Inc),
                 "decb" => opcode_with_1_arg!(iter, Self::Dec),
+                "pushl" => opcode_with_1_arg!(iter, Self::Push),
                 "jmp" => opcode_with_1_arg!(iter, Self::Jmp),
                 _ => return Err(AsmLineError::UnknownOpcode(opcode.to_string())),
             }
@@ -109,16 +115,34 @@ impl fmt::Display for AsmLine {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Label(l) => writeln!(f, "{}", l),
+            Self::Push(Arg::VirtualRegister(r)) => 
+            writeln!(f,
+                "\tSTA TMPW\n\
+                \tLDA VREG_{reg}\n\
+                \tPHA\n\
+                \tLDA VREG_{reg}+1\n\
+                \tPHA\n\
+                \tLDA TMPW"
+                , reg=r),
             Self::Jmp(l) => writeln!(f, "\tJMP {}", l),
 //            Self::Jmp(l) => writeln!(f, "\tJSR SYNCHRO\n\tJMP {}", l),
             Self::Xor(Arg::VirtualRegister(l), Arg::VirtualRegister(r)) if l == r => 
                 writeln!(f,
                     "\tPHA\n\
-                    \tLDA #0\n\
-                    \tSTA VREG_{reg}\n\
-                    \tSTA VREG_{reg}+1\n\
-                    \tPLA"
+                     \tLDA #0\n\
+                     \tSTA VREG_{reg}\n\
+                     \tSTA VREG_{reg}+1\n\
+                     \tPLA"
                     , reg=l),
+            Self::Cmp(Arg::Literal(l), Arg::VirtualRegister(r)) => 
+                // TODO: Cheat - we do the 8-bit comparison only
+                writeln!(f,
+                    "\tPHA\n\
+                     \tLDA VREG_{reg}\n\
+                     \tCMP #{lit}\n\
+                     \tjsr LAST_CMP_EQUAL\n\
+                     \tPLA"
+                    , reg=r, lit=l),
             Self::Adc(l, r) => match (l, r) {
                 (Arg::Literal(l), Arg::VirtualRegister(r)) if l < &0i32 => {
                     writeln!(f,
@@ -164,6 +188,23 @@ impl fmt::Display for AsmLine {
                          , source=l, target=r)
                 },
                 _ => writeln!(f, "Unable to generate code for opcode 'MOVZ' with combination of arguments: '{:?}' and '{:?}'", l, r),
+            },
+            Self::CMov(l, r) => match (l, r) {
+                (Arg::VirtualRegister(l), Arg::VirtualRegister(r)) => {
+                    writeln!(f,
+                        "\tPHA\n\
+                        \t; CHUJ\n\
+                        \tLDA LAST_CMP\n\
+                         \tCMP #1\n\
+                         \tBEQ @+\n\
+                         \tLDA VREG_{source}\n\
+                         \tSTA VREG_{target}\n\
+                         \tLDA VREG_{source}+1\n\
+                         \tSTA VREG_{target}+1\n\
+                         @\tPLA"
+                         , source=l, target=r)
+                },
+                _ => writeln!(f, "Unable to generate code for opcode 'CMov' with combination of arguments: '{:?}' and '{:?}'", l, r),
             },
             Self::Mov(l, r) => match (l, r) {
                 (Arg::Literal(l), Arg::SumAddress(x, y)) => {

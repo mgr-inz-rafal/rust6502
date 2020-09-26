@@ -76,8 +76,9 @@ fn main() -> Result<(), std::io::Error> {
         .for_each(|l| print!("{}\n", l));
 
     const ZERO_PAGE_BASE: usize = 0x80;
-    const VIRTUAL_REGISTERS_BASE: usize = ZERO_PAGE_BASE + 2;
+    const VIRTUAL_REGISTERS_BASE: usize = ZERO_PAGE_BASE + 3;
     println!("TMPW equ {}", ZERO_PAGE_BASE);
+    println!("LAST_CMP equ {}", ZERO_PAGE_BASE+2);
     transpiler
         .vregs
         .iter()
@@ -99,6 +100,15 @@ SYN_0       lda #145	; PAL
 SYN_1       cmp VCOUNT
             bne SYN_1
             rts        
+
+LAST_CMP_EQUAL
+        BEQ @+
+        LDA #1
+        STA LAST_CMP
+        RTS
+@       LDA #0
+        STA LAST_CMP
+        RTS
     "#);
 
     Ok(())
