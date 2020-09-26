@@ -114,8 +114,16 @@ impl FromStr for AsmLine {
 impl fmt::Display for AsmLine {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Label(l) => writeln!(f, "{}", l),
-            Self::Jmp(l) => writeln!(f, "\tJMP {}", l),
+            Self::Label(a) => writeln!(f, "{}", a),
+            Self::Jmp(a) => writeln!(f, "\tJMP {}", a),
+            Self::Push(r) => writeln!(f,
+                "\tSTA TMPW\n\
+                 \tLDA {reg}\n\
+                 \tPHA\n\
+                 \tLDA {reg}+1\n\
+                 \tPHA\n\
+                 \tSTA TMPW"
+                 , reg=r),
             Self::Xor(l, r) if l == r => writeln!(f, "\tLD{} #0", l),
             Self::Adc(l, r) => match (l, r) {
                 (Arg::AbsoluteAddress(a), Arg::Accumulator) => {

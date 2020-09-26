@@ -30,6 +30,7 @@ impl fmt::Display for Arg {
         match self {
             Self::Label(s) => write!(f, "{}", s),
             Self::Accumulator => write!(f, "A"),
+            Self::VirtualRegister(reg) => write!(f, "VREG_{}", reg),
             _ => write!(f, "Unable to generate 6502 code for argument: {:?}", self),
         }
     }
