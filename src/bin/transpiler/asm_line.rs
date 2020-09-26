@@ -42,7 +42,10 @@ pub(in crate) enum AsmLine {
     Xor(Arg, Arg),
     Adc(Arg, Arg),
     Mov(Arg, Arg),
+    CMov(Arg, Arg),
     MovZ(Arg, Arg),
+    Cmp(Arg, Arg),
+    Push(Arg),
     Inc(Arg),
     Dec(Arg),
     Jmp(Arg),
@@ -91,12 +94,15 @@ impl FromStr for AsmLine {
         if let Some(opcode) = iter.next() {
             match opcode.as_str() {
                 "movb" | "movl" => opcode_with_2_args!(iter, Self::Mov),
+                "cmovel" => opcode_with_2_args!(iter, Self::CMov),
                 "movzbl" => opcode_with_2_args!(iter, Self::MovZ),
                 "xorl" => opcode_with_2_args!(iter, Self::Xor),
                 "addb" => opcode_with_2_args!(iter, Self::Adc),
+                "cmpb" => opcode_with_2_args!(iter, Self::Cmp),
                 "incb" => opcode_with_1_arg!(iter, Self::Inc),
                 "decb" => opcode_with_1_arg!(iter, Self::Dec),
                 "jmp" => opcode_with_1_arg!(iter, Self::Jmp),
+                "pushl" => opcode_with_1_arg!(iter, Self::Push),
                 _ => return Err(AsmLineError::UnknownOpcode(opcode.to_string())),
             }
         }

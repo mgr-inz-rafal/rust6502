@@ -19,6 +19,7 @@ impl Arg {
             "eax" | "al" => Ok('A'),
             "ecx" | "cl" => Ok('C'),
             "edx" | "dl" => Ok('D'),
+            "esi" => Ok('S'),
             _ => Err(AsmLineError::MalformedRegisterName(name.to_string())),
         }
     }

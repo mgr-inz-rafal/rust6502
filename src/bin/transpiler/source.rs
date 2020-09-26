@@ -41,6 +41,7 @@ impl Screen {
             'u' => 117,
             's' => 115,
             't' => 116,
+            '*' => 10,
             _ => 0,
         }
     }
@@ -80,7 +81,7 @@ impl Gettable for Byte {
 
 /*
 #[inline(never)]
-pub fn asm6502_1() {
+pub fn asm6502_source() {
     let mut wsync = Byte::new(WSYNC);
     let mut colbk = Byte::new(COLBK);
     let strig0 = Byte::new(STRIG0);
@@ -116,23 +117,10 @@ pub fn asm6502_source() {
     let mut pos = 1;
     loop {
         screen.putchar(pos + 0, 0, ' ');
-        screen.putchar(pos + 1, 0, 'H');
-        screen.putchar(pos + 2, 0, 'e');
-        screen.putchar(pos + 3, 0, 'l');
-        screen.putchar(pos + 4, 0, 'l');
-        screen.putchar(pos + 5, 0, 'o');
+        screen.putchar(pos + 1, 0, '*');
         pos += 1;
         if pos == 70 {
             pos = 1
         }
     }
-
-    /*
-    let mut x: u8 = 0;
-    loop {
-        wsync.set(0);
-        colbk.set(x);
-        x += strig0.get();
-    }
-    */
 }
