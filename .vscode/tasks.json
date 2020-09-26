@@ -7,7 +7,7 @@
 			"command": "cargo",
 			"args": [
 				"asm",
-				"main::asm6502",
+				"transpiler::source::asm6502_source",
 				"--no-color",
 				"--asm-style",
 				"att",
@@ -40,7 +40,9 @@
 			"args": [
 				"run",
 				"--bin",
-				"transpiler"
+				"transpiler",
+				"--",
+				"--nocrash"
 			],
 			"problemMatcher": [
 				"$rustc"

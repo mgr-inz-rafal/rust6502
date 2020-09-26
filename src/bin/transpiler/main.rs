@@ -1,8 +1,10 @@
-#![feature(try_trait)]
+#![feature(llvm_asm, const_if_match, try_trait)]
 mod arg;
 mod asm_line;
+mod source;
 
 use std::collections::HashSet;
+use std::env;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
@@ -45,6 +47,10 @@ impl Transpiler {
 }
 
 fn main() -> Result<(), std::io::Error> {
+    if env::args().find(|arg| arg == "--nocrash").is_none() {
+        let _ = source::asm6502_source();
+    }
+
     let mut transpiler = Transpiler {
         vregs: HashSet::new(),
     };

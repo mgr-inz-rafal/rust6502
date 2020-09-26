@@ -1,4 +1,3 @@
-#![feature(llvm_asm, const_if_match)]
 use volatile_register::RW;
 
 const WSYNC: u16 = 0xD40A;
@@ -79,11 +78,7 @@ impl Gettable for Byte {
     }
 }
 
-pub fn black_box<T>(dummy: T) -> T {
-    unsafe { llvm_asm!("" : : "r"(&dummy)) }
-    dummy
-}
-
+/*
 #[inline(never)]
 pub fn asm6502_1() {
     let mut wsync = Byte::new(WSYNC);
@@ -109,9 +104,10 @@ pub fn asm6502_1() {
         x += strig0.get();
     }
 }
+*/
 
 #[inline(never)]
-pub fn asm6502() {
+pub fn asm6502_source() {
     let mut wsync = Byte::new(WSYNC);
     let mut colbk = Byte::new(COLBK);
     let strig0 = Byte::new(STRIG0);
@@ -126,11 +122,9 @@ pub fn asm6502() {
         screen.putchar(pos + 4, 0, 'l');
         screen.putchar(pos + 5, 0, 'o');
         pos += 1;
-        /*
         if pos == 70 {
             pos = 1
         }
-        */
     }
 
     /*
