@@ -78,9 +78,8 @@ impl Gettable for Byte {
     }
 }
 
-/*
 #[inline(never)]
-pub fn asm6502_1() {
+pub fn asm6502_source() {
     let mut wsync = Byte::new(WSYNC);
     let mut colbk = Byte::new(COLBK);
     let strig0 = Byte::new(STRIG0);
@@ -104,8 +103,8 @@ pub fn asm6502_1() {
         x += strig0.get();
     }
 }
-*/
 
+/*
 #[inline(never)]
 pub fn asm6502_source() {
     let mut wsync = Byte::new(WSYNC);
@@ -122,9 +121,11 @@ pub fn asm6502_source() {
         screen.putchar(pos + 4, 0, 'l');
         screen.putchar(pos + 5, 0, 'o');
         pos += 1;
+        /*
         if pos == 70 {
             pos = 1
         }
+        */
     }
 
     /*
@@ -136,3 +137,4 @@ pub fn asm6502_source() {
     }
     */
 }
+*/

@@ -86,5 +86,20 @@ fn main() -> Result<(), std::io::Error> {
             println!("VREG_{} equ {}", reg, VIRTUAL_REGISTERS_BASE + (index << 1));
         });
 
+    // Add runtime :)
+    println!(r#"
+PAL     = $D014
+VCOUNT  = $D40B
+SYNCHRO
+            lda PAL
+            beq SYN_0
+            lda #120	; NTSC
+            jmp SYN_1
+SYN_0       lda #145	; PAL
+SYN_1       cmp VCOUNT
+            bne SYN_1
+            rts        
+    "#);
+
     Ok(())
 }

@@ -5,7 +5,6 @@ use crate::asm_line::AsmLineError;
 #[derive(Debug)]
 pub(in crate) enum Arg {
     Literal(i32),
-    Accumulator,
     VirtualRegister(char),
     AbsoluteAddress(i32),
     SumAddress(char, char),
@@ -28,7 +27,6 @@ impl fmt::Display for Arg {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Label(s) => write!(f, "{}", s),
-            Self::Accumulator => write!(f, "A"),
             _ => write!(f, "Unable to generate 6502 code for argument: {:?}", self),
         }
     }
@@ -37,7 +35,6 @@ impl fmt::Display for Arg {
 impl PartialEq for Arg {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::Accumulator, Self::Accumulator) => true,
             _ => false,
         }
     }
@@ -60,7 +57,6 @@ impl FromStr for Arg {
                         .collect::<String>(),
                 )
                 .and_then(|c| match c {
-                    'A' => Ok(Self::Accumulator),
                     _ => Ok(Self::VirtualRegister(c)),
                 }),
                 '.' => Ok(Self::Label({

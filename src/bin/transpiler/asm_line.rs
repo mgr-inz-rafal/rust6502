@@ -110,15 +110,17 @@ impl fmt::Display for AsmLine {
         match self {
             Self::Label(l) => writeln!(f, "{}", l),
             Self::Jmp(l) => writeln!(f, "\tJMP {}", l),
-            Self::Xor(l, r) if l == r => writeln!(f, "\tLD{} #0", l),
+//            Self::Jmp(l) => writeln!(f, "\tJSR SYNCHRO\n\tJMP {}", l),
+            Self::Xor(Arg::VirtualRegister(l), Arg::VirtualRegister(r)) if l == r => 
+                writeln!(f,
+                    "\tPHA\n\
+                    \tLDA #0\n\
+                    \tSTA VREG_{reg}\n\
+                    \tSTA VREG_{reg}+1\n\
+                    \tPLA"
+                    , reg=l),
             Self::Adc(l, r) => match (l, r) {
-                (Arg::AbsoluteAddress(a), Arg::Accumulator) => {
-                    writeln!(f,
-                        "\tCLC\n\
-                         \tADC {}"
-                         ,a)
-                },
-                (Arg::Literal(l), Arg::VirtualRegister(r)) if l < &0i32  => {
+                (Arg::Literal(l), Arg::VirtualRegister(r)) if l < &0i32 => {
                     writeln!(f,
                         "\tPHA\n\
                          \tSEC\n\
@@ -131,6 +133,19 @@ impl fmt::Display for AsmLine {
                          \tPLA"
                          , reg=r, literal=-l)
                 },
+                (Arg::AbsoluteAddress(a), Arg::VirtualRegister(r)) => {
+                    writeln!(f,
+                        "\tPHA\n\
+                         \tCLC\n\
+                         \tLDA VREG_{reg}\n\
+                         \tADC {addr}\n\
+                         \tSTA VREG_{reg}\n\
+                         \tLDA VREG_{reg}+1\n\
+                         \tADC #0\n\
+                         \tSTA VREG_{reg}+1\n\
+                         \tPLA"
+                         , addr=a, reg=r)
+                },
                 _ => writeln!(f, "Unable to generate code for opcode 'ADC' with combination of arguments: '{:?}' and '{:?}'", l, r),
             },
             Self::MovZ(l, r) => match (l, r) {
@@ -138,14 +153,15 @@ impl fmt::Display for AsmLine {
                     // Do nothing
                     Ok(())
                 },
-                (Arg::Accumulator, Arg::VirtualRegister(r)) => {
+                (Arg::VirtualRegister(l), Arg::VirtualRegister(r)) => {
                     writeln!(f,
-                        "\tSTA VREG_{reg}\n\
-                         \tPHA\n\
-                         \tLDA #0\n\
-                         \tSTA VREG_{reg}+1\n\
+                        "\tPHA\n\
+                         \tLDA VREG_{source}\n\
+                         \tSTA VREG_{target}\n\
+                         \tLDA VREG_{source}+1\n\
+                         \tSTA VREG_{target}+1\n\
                          \tPLA"
-                         , reg=r)
+                         , source=l, target=r)
                 },
                 _ => writeln!(f, "Unable to generate code for opcode 'MOVZ' with combination of arguments: '{:?}' and '{:?}'", l, r),
             },
@@ -182,17 +198,6 @@ impl fmt::Display for AsmLine {
                          \tPLA"
                          , literal=l, addr=a)
                 },
-                (Arg::Literal(l), Arg::Accumulator) => {
-                    writeln!(f,
-                        "\tLDA #{literal}"
-                         , literal=l)
-                },
-                (Arg::Accumulator, Arg::AbsoluteAddress(a)) => {
-                    writeln!(f, "\tSTA {}", a)
-                },
-                (Arg::AbsoluteAddress(a), Arg::Accumulator) => {
-                    writeln!(f, "\tLDA {}", a)
-                },
                 (Arg::Literal(l), Arg::VirtualRegister(r)) => {
                     writeln!(f,
                         "\tPHA\n\
@@ -202,15 +207,6 @@ impl fmt::Display for AsmLine {
                          \tSTA VREG_{reg}+1\n\
                          \tPLA"
                          , literal=l, reg=r)
-                },
-                (Arg::Accumulator, Arg::VirtualRegister(r)) => {
-                    writeln!(f,
-                        "\tPHA\n\
-                         \tSTA VREG_{reg}\n\
-                         \tLDA #0\n\
-                         \tSTA VREG_{reg}+1\n\
-                         \tPLA"
-                         , reg=r)
                 },
                 (Arg::AbsoluteAddress(a), Arg::VirtualRegister(r)) => {
                     writeln!(f,
@@ -228,21 +224,38 @@ impl fmt::Display for AsmLine {
                          \tPLA"
                          , addr=a, reg=r)
                 },
+                (Arg::VirtualRegister(l), Arg::VirtualRegister(r)) => {
+                    writeln!(f,
+                        "\tPHA\n\
+                         \tLDA VREG_{source}\n\
+                         \tSTA VREG_{target}\n\
+                         \tLDA VREG_{source}+1\n\
+                         \tSTA VREG_{target}+1\n\
+                         \tPLA"
+                         , source=l, target=r)
+                },
                 _ => writeln!(f, "Unable to generate code for opcode 'MOV' with combination of arguments: '{:?}' and '{:?}'", l, r),
             },
             Self::Inc(a) => {
                 match a {
-                    Arg::Accumulator =>{
-                        writeln!(f, "\tCLC\n\tADC #1")
-                    }
+                    Arg::VirtualRegister(r) => {
+                        writeln!(f,
+                            "\tPHA\n\
+                             \tCLC\n\
+                             \tLDA VREG_{reg}\n\
+                             \tADC #<1\n\
+                             \tSTA VREG_{reg}\n\
+                             \tLDA VREG_{reg}+1\n\
+                             \tADC #>1\n\
+                             \tSTA VREG_{reg}+1\n\
+                             \tPLA"
+                             , reg=r)
+                        }
                     _ => writeln!(f, "Unable to generate code for opcode 'INC' with argument: '{:?}'", a),
                 }
             }
             Self::Dec(a) => {
                 match a {
-                    Arg::Accumulator =>{
-                        writeln!(f, "\tSEC\n\tSBC #1")
-                    }
                     Arg::VirtualRegister(r) =>{
                         writeln!(f, "\tDEW VREG_{reg}", reg=r)
                     }
