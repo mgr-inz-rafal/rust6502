@@ -1,3 +1,9 @@
 /target
-output.asm
+output_6502.asm
+output_x86.asm
 .vscode/settings.json
+mads.exe
+*.lab
+*.lst
+*.xex
+Altirra64.exe

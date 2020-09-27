@@ -11,7 +11,7 @@ use std::io::{BufRead, BufReader};
 use arg::Arg;
 use asm_line::AsmLine;
 
-const FILENAME: &str = "output.asm";
+const FILENAME_X86: &str = "output_x86.asm";
 
 #[derive(Debug)]
 struct Transpiler {
@@ -55,12 +55,13 @@ fn main() -> Result<(), std::io::Error> {
         vregs: HashSet::new(),
     };
 
-    let file = File::open(FILENAME)?;
-    let file = BufReader::new(&file);
+    let input_file = File::open(FILENAME_X86)?;
+    let input_file = BufReader::new(&input_file);
 
-    eprintln!("Parsing input file...");
+    eprint!("Transpiling... ");
     println!("\tORG $2000");
-    file.lines()
+    input_file
+        .lines()
         .skip(1)
         .enumerate()
         .map(|(num, l)| {
@@ -78,7 +79,7 @@ fn main() -> Result<(), std::io::Error> {
     const ZERO_PAGE_BASE: usize = 0x80;
     const VIRTUAL_REGISTERS_BASE: usize = ZERO_PAGE_BASE + 3;
     println!("TMPW equ {}", ZERO_PAGE_BASE);
-    println!("LAST_CMP equ {}", ZERO_PAGE_BASE+2);
+    println!("LAST_CMP equ {}", ZERO_PAGE_BASE + 2);
     transpiler
         .vregs
         .iter()
@@ -88,7 +89,8 @@ fn main() -> Result<(), std::io::Error> {
         });
 
     // Add runtime :)
-    println!(r#"
+    println!(
+        r#"
 PAL     = $D014
 VCOUNT  = $D40B
 SYNCHRO
@@ -109,7 +111,9 @@ LAST_CMP_EQUAL
 @       LDA #0
         STA LAST_CMP
         RTS
-    "#);
+    "#
+    );
 
+    eprintln!("DONE!");
     Ok(())
 }
