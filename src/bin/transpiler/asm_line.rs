@@ -54,24 +54,32 @@ pub(in crate) enum AsmLine {
 impl AsmLine {
     fn args<'a, I>(parts: I, expected_count: usize) -> Result<Vec<String>, AsmLineError>
     where
-        I: IntoIterator<Item = &'a String>,
+        I: Iterator<Item = &'a String>,
     {
-        let mut args: Vec<String> = vec![];
+        let mut result: Vec<String> = vec![];
 
-        let mut i = parts.into_iter();
-        for _ in 0..2 {
-            for first in i.next() {
-                if first.starts_with("(") {
-                    i.next()
-                        .and_then(|second| Some(args.push(format!("{}{}", first, second))));
-                } else {
-                    args.push(first.to_owned());
+        let args: Vec<&'a String> = parts.collect();
+        match args.len() {
+            1 => result.push(args.get(0)?.to_string()),
+            2 => {
+                for i in 0..=1 {
+                    result.push(args.get(i)?.to_string())
+                }
+            },
+            3 => {
+                // Special case for lines like `movb $10, (%eax, %edx)`
+                // where `(%eax, %edx)` must be combined into single argument
+                result.push(args.get(0)?.to_string());
+                let second = args.get(1)?.to_string();
+                if second.starts_with('(') {
+                    result.push(format!("{}{}", second, args.get(2)?));
                 }
             }
+            _ => panic!("Argument parsing error")
         }
 
-        if args.len() == expected_count {
-            Ok(args)
+        if result.len() == expected_count {
+            Ok(result)
         } else {
             Err(AsmLineError::IncorrectNumberOfArguments)
         }
@@ -112,6 +120,7 @@ impl FromStr for AsmLine {
 }
 
 impl fmt::Display for AsmLine {
+    #[allow(clippy::many_single_char_names)]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Label(l) => writeln!(f, "{}", l),
@@ -193,8 +202,7 @@ impl fmt::Display for AsmLine {
                 (Arg::VirtualRegister(l), Arg::VirtualRegister(r)) => {
                     writeln!(f,
                         "\tPHA\n\
-                        \t; CHUJ\n\
-                        \tLDA LAST_CMP\n\
+                         \tLDA LAST_CMP\n\
                          \tCMP #1\n\
                          \tBEQ @+\n\
                          \tLDA VREG_{source}\n\

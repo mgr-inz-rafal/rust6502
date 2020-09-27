@@ -30,7 +30,7 @@ impl Screen {
         }
     }
 
-    const fn to_atari_char(c: char) -> u8 {
+    const fn char_to_atari_code(c: char) -> u8 {
         match c {
             'H' => 40,
             'e' => 101,
@@ -47,7 +47,7 @@ impl Screen {
     }
 
     fn putchar(&self, x: u8, y: u8, c: char) {
-        unsafe { (*self.s).screen[(x + y * 40u8) as usize].write(Screen::to_atari_char(c)) }
+        unsafe { (*self.s).screen[(x + y * 40u8) as usize].write(Screen::char_to_atari_code(c)) }
     }
 }
 
@@ -119,6 +119,5 @@ pub fn asm6502_source() {
             pos = 1
         }
     }
-
 }
 */

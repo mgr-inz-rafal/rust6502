@@ -34,14 +34,6 @@ impl fmt::Display for Arg {
     }
 }
 
-impl PartialEq for Arg {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            _ => false,
-        }
-    }
-}
-
 impl FromStr for Arg {
     type Err = AsmLineError;
 
@@ -58,22 +50,20 @@ impl FromStr for Arg {
                         .filter(|c| !vec![',', '%'].contains(c))
                         .collect::<String>(),
                 )
-                .and_then(|c| match c {
-                    _ => Ok(Self::VirtualRegister(c)),
-                }),
+                .and_then(|c| Ok(Self::VirtualRegister(c))),
                 '.' => Ok(Self::Label({
                     it.skip(1).filter(|c| *c != ',').collect::<String>()
                 })),
                 '(' => {
                     let args: String = it.collect();
-                    let args = args.trim_end_matches(")");
-                    let args = args.trim_start_matches("(");
-                    let args: Vec<String> = args.split(",").map(ToString::to_string).collect();
+                    let args = args.trim_end_matches(')');
+                    let args = args.trim_start_matches('(');
+                    let args: Vec<String> = args.split(',').map(ToString::to_string).collect();
 
                     // TODO: Simplification: edx => D, ecx => C, etc.
                     Ok(Self::SumAddress(
-                        args[0].chars().skip(2).next().unwrap(),
-                        args[1].chars().skip(2).next().unwrap(),
+                        args[0].chars().nth(2).unwrap(),
+                        args[1].chars().nth(2).unwrap(),
                     ))
                 }
                 '0'..='9' => Ok(Self::AbsoluteAddress({
@@ -92,7 +82,7 @@ impl FromStr for Arg {
                 _ => Err(AsmLineError::MalformedArgumentName(s.to_string())),
             }?)
         } else {
-            return Err(AsmLineError::UnknownError);
+            Err(AsmLineError::UnknownError)
         }
     }
 }

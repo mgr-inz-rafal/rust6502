@@ -74,7 +74,7 @@ fn main() -> Result<(), std::io::Error> {
             transpiler.check_for_virtual_registers(&s);
             s
         })
-        .for_each(|l| print!("{}\n", l));
+        .for_each(|l| println!("{}", l));
 
     const ZERO_PAGE_BASE: usize = 0x80;
     const VIRTUAL_REGISTERS_BASE: usize = ZERO_PAGE_BASE + 3;
