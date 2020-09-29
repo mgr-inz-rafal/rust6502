@@ -104,20 +104,3 @@ pub fn asm6502_source() {
         x += strig0.get();
     }
 }
-
-/*
-#[inline(never)]
-pub fn asm6502_source() {
-    let screen = Screen::new(SCREEN);
-
-    let mut pos = 1;
-    loop {
-        screen.putchar(pos + 0, 0, ' ');
-        screen.putchar(pos + 1, 0, '*');
-        pos += 1;
-        if pos == 20 {
-            pos = 1
-        }
-    }
-}
-*/

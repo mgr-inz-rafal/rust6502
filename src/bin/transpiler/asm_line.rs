@@ -134,7 +134,7 @@ impl fmt::Display for AsmLine {
                 \tLDA TMPW"
                 , reg=r),
             Self::Jmp(l) => writeln!(f, "\tJMP {}", l),
-//            Self::Jmp(l) => writeln!(f, "\tJSR SYNCHRO\n\tJMP {}", l),
+            //Self::Jmp(l) => writeln!(f, "\tJSR SYNCHRO\n\tJMP {}", l),
             Self::Xor(Arg::VirtualRegister(l), Arg::VirtualRegister(r)) if l == r => 
                 writeln!(f,
                     "\tPHA\n\
