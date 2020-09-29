@@ -13,7 +13,7 @@
 				"att",
 				"--target",
 				"i686-unknown-linux-gnu",
-				">output.asm"
+				">output_x86.asm"
 			],
 			"problemMatcher": [
 				"$rustc"
@@ -42,8 +42,31 @@
 				"--bin",
 				"transpiler",
 				"--",
-				"--nocrash"
+				"--nocrash",
+				">output_6502.asm"
 			],
+			"problemMatcher": [
+				"$rustc"
+			],
+			"group": {
+				"kind": "build"
+			}
+		},
+		{
+			"label": "Compile for Atari",
+			"type": "shell",
+			"command": "./compile_for_atari.sh",
+			"problemMatcher": [
+				"$rustc"
+			],
+			"group": {
+				"kind": "build"
+			}
+		},
+		{
+			"label": "Run on Atari Emulator",
+			"type": "shell",
+			"command": "./run_on_emulator.sh",
 			"problemMatcher": [
 				"$rustc"
 			],

@@ -11,7 +11,7 @@ use std::io::{BufRead, BufReader};
 use arg::Arg;
 use asm_line::AsmLine;
 
-const FILENAME: &str = "output.asm";
+const FILENAME_X86: &str = "output_x86.asm";
 
 #[derive(Debug)]
 struct Transpiler {
@@ -55,12 +55,13 @@ fn main() -> Result<(), std::io::Error> {
         vregs: HashSet::new(),
     };
 
-    let file = File::open(FILENAME)?;
-    let file = BufReader::new(&file);
+    let input_file = File::open(FILENAME_X86)?;
+    let input_file = BufReader::new(&input_file);
 
-    eprintln!("Parsing input file...");
+    eprint!("Transpiling... ");
     println!("\tORG $2000");
-    file.lines()
+    input_file
+        .lines()
         .skip(1)
         .enumerate()
         .map(|(num, l)| {
@@ -73,11 +74,12 @@ fn main() -> Result<(), std::io::Error> {
             transpiler.check_for_virtual_registers(&s);
             s
         })
-        .for_each(|l| print!("{}\n", l));
+        .for_each(|l| println!("{}", l));
 
     const ZERO_PAGE_BASE: usize = 0x80;
-    const VIRTUAL_REGISTERS_BASE: usize = ZERO_PAGE_BASE + 2;
+    const VIRTUAL_REGISTERS_BASE: usize = ZERO_PAGE_BASE + 3;
     println!("TMPW equ {}", ZERO_PAGE_BASE);
+    println!("LAST_CMP equ {}", ZERO_PAGE_BASE + 2);
     transpiler
         .vregs
         .iter()
@@ -86,5 +88,32 @@ fn main() -> Result<(), std::io::Error> {
             println!("VREG_{} equ {}", reg, VIRTUAL_REGISTERS_BASE + (index << 1));
         });
 
+    // Add runtime :)
+    println!(
+        r#"
+PAL     = $D014
+VCOUNT  = $D40B
+SYNCHRO
+            lda PAL
+            beq SYN_0
+            lda #120	; NTSC
+            jmp SYN_1
+SYN_0       lda #145	; PAL
+SYN_1       cmp VCOUNT
+            bne SYN_1
+            rts        
+
+LAST_CMP_EQUAL
+        BEQ @+
+        LDA #1
+        STA LAST_CMP
+        RTS
+@       LDA #0
+        STA LAST_CMP
+        RTS
+    "#
+    );
+
+    eprintln!("DONE!");
     Ok(())
 }

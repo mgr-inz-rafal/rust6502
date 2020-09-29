@@ -30,7 +30,7 @@ impl Screen {
         }
     }
 
-    const fn to_atari_char(c: char) -> u8 {
+    const fn char_to_atari_code(c: char) -> u8 {
         match c {
             'H' => 40,
             'e' => 101,
@@ -41,12 +41,13 @@ impl Screen {
             'u' => 117,
             's' => 115,
             't' => 116,
+            '*' => 10,
             _ => 0,
         }
     }
 
     fn putchar(&self, x: u8, y: u8, c: char) {
-        unsafe { (*self.s).screen[(x + y * 40u8) as usize].write(Screen::to_atari_char(c)) }
+        unsafe { (*self.s).screen[(x + y * 40u8) as usize].write(Screen::char_to_atari_code(c)) }
     }
 }
 
@@ -78,9 +79,8 @@ impl Gettable for Byte {
     }
 }
 
-/*
 #[inline(never)]
-pub fn asm6502_1() {
+pub fn asm6502_source() {
     let mut wsync = Byte::new(WSYNC);
     let mut colbk = Byte::new(COLBK);
     let strig0 = Byte::new(STRIG0);
@@ -103,36 +103,4 @@ pub fn asm6502_1() {
         colbk.set(x);
         x += strig0.get();
     }
-}
-*/
-
-#[inline(never)]
-pub fn asm6502_source() {
-    let mut wsync = Byte::new(WSYNC);
-    let mut colbk = Byte::new(COLBK);
-    let strig0 = Byte::new(STRIG0);
-    let screen = Screen::new(SCREEN);
-
-    let mut pos = 1;
-    loop {
-        screen.putchar(pos + 0, 0, ' ');
-        screen.putchar(pos + 1, 0, 'H');
-        screen.putchar(pos + 2, 0, 'e');
-        screen.putchar(pos + 3, 0, 'l');
-        screen.putchar(pos + 4, 0, 'l');
-        screen.putchar(pos + 5, 0, 'o');
-        pos += 1;
-        if pos == 70 {
-            pos = 1
-        }
-    }
-
-    /*
-    let mut x: u8 = 0;
-    loop {
-        wsync.set(0);
-        colbk.set(x);
-        x += strig0.get();
-    }
-    */
 }
